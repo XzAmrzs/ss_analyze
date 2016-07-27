@@ -28,7 +28,7 @@ def sendPartition(iter):
     db = client.hls
     posts = db.col
     for record in iter:
-        posts.insert_one({'user': record[0], 'flux': record[1]})
+        posts.update({"user": record[0]}, {"$set": {"flux": record[1]}}, True)
 
 
 if __name__ == "__main__":
@@ -42,18 +42,16 @@ if __name__ == "__main__":
     ssc = StreamingContext(sc, 1)
     ssc.checkpoint("checkpoint")
 
-    # host, port = sys.argv[1:]
     # Create a DStream that will connect to hostname:port
-    lines = ssc.socketTextStream(sys.argv[1], int(sys.argv[2]))
+    host, port = sys.argv[1:]
+    lines = ssc.socketTextStream(host, int(port))
 
-    body_dict = lines.map(lambda s: json.loads(s))
+    body_dict = lines.map(lambda s: json.loads(s, encoding='utf-8'))
     user_flux = body_dict.map(
         lambda body_dict: (body_dict.get('user', "no user keyword"), body_dict['body_bytes_sent']))
 
     running_counts = user_flux.updateStateByKey(updateFunc)
-
     running_counts.foreachRDD(lambda rdd: rdd.foreachPartition(sendPartition))
-    running_counts.pprint()
 
     ssc.start()
     ssc.awaitTermination()
