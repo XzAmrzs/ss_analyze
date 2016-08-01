@@ -31,6 +31,15 @@ def sendPartition(iter):
         posts.update({"user": record[0]}, {"$set": {"flux": record[1]}}, True)
 
 
+def raw_print(s):
+    # print(s)
+    # print('*'*2)
+    if s[0] == '{' and s[-1] == '}':
+        return json.loads(s)
+    else:
+        return {}
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: flux_analyze.py <hostname> <port>", file=sys.stderr)
@@ -39,16 +48,18 @@ if __name__ == "__main__":
     # Create a local StreamingContext with two working thread and batch interval of 1 second
     # sc = SparkContext('local[2]',appName="HLS_flux_Analyze")
     sc = SparkContext(appName="HLS_Flux_Analyze")
-    ssc = StreamingContext(sc, 1)
+    ssc = StreamingContext(sc, 30)
     ssc.checkpoint("checkpoint")
 
     # Create a DStream that will connect to hostname:port
     host, port = sys.argv[1:]
     lines = ssc.socketTextStream(host, int(port))
-
-    body_dict = lines.map(lambda s: json.loads(s, encoding='utf-8'))
+    try:
+        body_dict = lines.map(raw_print)
+    except Exception as e:
+        print("***Parse Error:" + str(e) + "***")
     user_flux = body_dict.map(
-        lambda body_dict: (body_dict.get('user', "no user keyword"), body_dict['body_bytes_sent']))
+        lambda body_dict: (body_dict.get('user', "no user keyword"), body_dict.get('body_bytes_sent', 0)))
 
     running_counts = user_flux.updateStateByKey(updateFunc)
     running_counts.foreachRDD(lambda rdd: rdd.foreachPartition(sendPartition))
@@ -56,4 +67,3 @@ if __name__ == "__main__":
     ssc.start()
     ssc.awaitTermination()
     ssc.checkpoint("checkpoint")
-
