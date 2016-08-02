@@ -10,30 +10,33 @@ import json
 
 
 class MQAPI(object):
-    def getOffset(host, topic, partition, userKey):
+    def __init__(self, host, topic, userKey):
+        self.host = host
+        self.topic = topic
+        self.userKey = userKey
+
+    def getOffset(self, partition):
         """
-        :param host: str
-        :param topic: str
         :param partition: int
         :param userKey: str
         :return: dict{'startOffset','lastOffset','offset'}
         """
-        getUrl = '/'.join([host, 'offsets', topic, str(partition), userKey])
+        getUrl = '/'.join([self.host, 'offsets', self.topic, str(partition), self.userKey])
         print(getUrl)
         urlop = urllib2.urlopen(getUrl)
         offsets = json.loads(urlop.read())
         urlop.close()
         return offsets
 
-    def pullData(host, topic, partition, cur):
-        pullUrl = '/'.join([host, 'messages', topic, str(partition), str(cur)])
+    def pullData(self, partition, cur):
+        pullUrl = '/'.join([self.host, 'messages', self.topic, str(partition), str(cur)])
         print(pullUrl)
         pull = urllib2.urlopen(pullUrl, timeout=10)
         data = json.loads(pull.read())
         return data
 
-    def setOffset(host, topic, partition, cur, userKey):
-        postUrl = '/'.join([host, 'offsets', topic, str(partition), userKey])
+    def setOffset(self, partition, cur):
+        postUrl = '/'.join([self.host, 'offsets', self.topic, str(partition), self.userKey])
         print(postUrl)
         headers = {"Content-type": "application/json"}
         info = {"offset": cur}
@@ -45,8 +48,8 @@ class MQAPI(object):
 
 
 if __name__ == '__main__':
-    mq = MQAPI()
-    offsets = mq.getOffset('http://api.mq.aodianyun.com/v1', 'nodeHls', 0, 'XZP')
+    mq = MQAPI('http://api.mq.aodianyun.com/v1','nodeHls','XZP')
+    offsets = mq.getOffset(0)
     print(offsets)
     print(offsets['offset'])
     # data = pullData('http://api.mq.aodianyun.com/v1', 'nodeHls', 0,  689467667)

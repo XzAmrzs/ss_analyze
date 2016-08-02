@@ -84,10 +84,7 @@ class AsyncProducer(threading.Thread):
         #         producer = KeyedProducer(client, partitioner=HashedPartitioner,async=True)
 
         while True:
-            response(producer, 'test')
-            # producer.send_messages('test', 'test')
-            # producer.send_messages('test', 'test')
-            # time.sleep(1)
+            response(producer, 'nodeHls')
 
 if __name__ == '__main__':
     AsyncProducer().start()
