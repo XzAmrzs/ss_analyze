@@ -1,7 +1,7 @@
 # coding = utf-8
 import json
 import urllib2
-
+import time
 # from MQAPI import MQAPI
 
 
@@ -22,8 +22,16 @@ class NodeHlsAPI(object):
 
     def pullData(self, partition, cur, **kwargs):
         pullUrl = '/'.join([self.host, 'messages', self.topic, str(partition), str(cur)])
+        connCount = 0
+        pull = None
         print(pullUrl)
-        pull = urllib2.urlopen(pullUrl, timeout=10)
+        while connCount < 5:
+            try:
+                pull = urllib2.urlopen(pullUrl, timeout=10)
+                break
+            except:
+                time.sleep(1)
+                connCount += 1
         data = json.loads(pull.read())
         return data
 
