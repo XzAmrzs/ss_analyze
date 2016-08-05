@@ -2,7 +2,6 @@
 from __future__ import print_function
 
 import time
-import sys
 
 from kafka import SimpleClient
 from kafka import SimpleProducer
@@ -10,11 +9,12 @@ from kafka import SimpleProducer
 # from kafka.partitioner import RoundRobinPartitioner
 
 from MQ.NodeHlsAPI import nodeHlsAPI as MQAPI
+from config import conf
 import tools
 
-PARTITION_NUM = 9
-logPath = '/data/spark_log/'
-timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
+PARTITION_NUM = conf.PARTITION_NUM
+logPath = conf.logPath
+timeYmd = conf.timeYmd
 
 
 def deal_with(data_list, producer, kfk_topic, partition):
@@ -95,6 +95,6 @@ if __name__ == '__main__':
     # brokers, topic = sys.argv[1:]
     brokers = ["192.168.1.72:9092", "192.168.1.150:9092"]
     brokers = ','.join(brokers)
-    topic = 'test'
+    topic = 'nodeHls'
     run(brokers, topic)
     time.sleep(5000)

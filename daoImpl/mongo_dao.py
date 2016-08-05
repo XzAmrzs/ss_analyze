@@ -9,7 +9,7 @@ collection_name = conf.COLLECTION_NAME
 
 class MongoDao(object):
     def __init__(self, host, port, db_name):
-        self.client = MongoClient(host, port)
+        self.client = MongoClient(host, port, maxPoolsize=200)
         self.db = self.client.get_database(db_name)
 
     def update(self, col_name, *sql):

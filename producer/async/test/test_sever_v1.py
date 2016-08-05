@@ -1,21 +1,26 @@
 # coding=utf-8
 from __future__ import print_function
-import threading, time
+
+import time
+import sys
+
 from kafka import SimpleClient
 from kafka import SimpleProducer
 # from kafka.partitioner import HashedPartitioner
 # from kafka.partitioner import RoundRobinPartitioner
 
 from MQ.NodeHlsAPI import nodeHlsAPI as MQAPI
+from config import conf
 import tools
 
-PARTITION_NUM = 9
-logPath = './log/'
-timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
-counts = 0
+PARTITION_NUM = conf.PARTITION_NUM
+logPath = conf.logPath
+timeYmd = conf.timeYmd
+n = 0
 
 
-def deal_with(data_list, producer, kfk_topic):
+
+def deal_with(data_list, producer, kfk_topic, partition):
     """
     :param data_list: list
     :param producer: SimpleProducer
@@ -24,7 +29,17 @@ def deal_with(data_list, producer, kfk_topic):
     """
     for data in data_list:
         body = data.get('body', 'Error:no body keyword')
-        producer.send_messages(kfk_topic, bytes(body.replace('\\', '')))
+        if body.endswith('}') and body.startswith('{'):
+            global n
+            n += 1
+            if n < 10000000:
+                producer.send_messages(kfk_topic, bytes(body.replace('\\', '')))
+            else:
+                print('发送数据已经达到上限')
+        else:
+            offset = data.get('offset', 'Error:no offset keyword')
+            tools.logout(logPath, 'hls', timeYmd,
+                         'Error data: partition: ' + str(partition) + ' offset: ' + str(offset) + '\n' + str(data), 3)
 
 
 def response(producer, kfk_topic):
@@ -51,6 +66,8 @@ def response(producer, kfk_topic):
 
             except Exception as e:
                 # 此处发生异常很大一部分只能是网络原因,跳出循环尝试读取下一个分区
+                tools.logout(logPath, 'hls', timeYmd,
+                             'Error: ' + str(partition) + 'EX:' + str(e), 1)
                 print(str(e))
                 break
 
@@ -61,12 +78,11 @@ def response(producer, kfk_topic):
                     data_list = data.get("list", "Error: no list keykowd in this frame")
 
                     # 处理数据
-                    deal_with(data_list, producer, kfk_topic)
+                    deal_with(data_list, producer, kfk_topic, partition)
 
                     # 更新MQ远程和当前游标的状态
                     MQAPI.setOffset(partition, nextOffset)
                     offset = nextOffset
-
                     if offset >= lastOffset:
                         # 如果更新过的当前游标大于等于最后一个游标,立即跳出循环去读取下一个分区的记录
                         break
@@ -77,16 +93,16 @@ def response(producer, kfk_topic):
                     time.sleep(0.1)
 
 
-# class AsyncProducer(threading.Thread):
-#     daemon = True
-
-def run():
-    client = SimpleClient("localhost:9092")
+def run(brokers, topic):
+    client = SimpleClient(brokers)
     producer = SimpleProducer(client, async=True)
-    #         producer = KeyedProducer(client, partitioner=HashedPartitioner,async=True
-    response(producer, 'nodeHls')
+    response(producer, topic)
+
 
 if __name__ == '__main__':
-    # AsyncProducer().start()
-    run()
-    # time.sleep(5000)
+    # brokers, topic = sys.argv[1:]
+    brokers = ["192.168.1.72:9092", "192.168.1.150:9092"]
+    brokers = ','.join(brokers)
+    topic = 'nodeHls'
+    run(brokers, topic)
+    time.sleep(5000)

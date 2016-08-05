@@ -13,7 +13,7 @@ TIME_YMD = tools.timeFormat('%Y%m%d', int(time.time()))
 
 # Kafka
 KAFKA_BROKERS = '192.168.1.72:9092,192.168.1.150:9092'
-KAFKA_TOPIC = 'test'
+KAFKA_TOPIC = 'nodeHls'
 
 # Spark
 APP_NAME = 'HLS_Analyze'
