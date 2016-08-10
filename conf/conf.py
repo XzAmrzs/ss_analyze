@@ -15,6 +15,9 @@ TIME_YMD = tools.timeFormat('%Y%m%d', int(time.time()))
 KAFKA_BROKERS = '192.168.1.72:9092,192.168.1.150:9092'
 KAFKA_TOPIC = 'nodeHls'
 
+#zookeeper
+ZK_SERVERS = '192.168.1.72:2181'
+
 # Spark
 APP_NAME = 'HLS_Analyze'
 CHECKPOINT_DIR = 'checkpoint'

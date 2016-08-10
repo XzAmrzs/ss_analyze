@@ -5,10 +5,12 @@
 
 import json
 from pymongo import MongoClient
+from kazoo.client import KazooClient
+from kazoo.exceptions import KazooException
 
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
-from pyspark.streaming.kafka import KafkaUtils
+from pyspark.streaming.kafka import KafkaUtils, TopicAndPartition,OffsetRange
 
 from utils import tools
 from conf import conf
@@ -23,9 +25,62 @@ timeYmd = conf.TIME_YMD
 
 kafka_brokers = conf.KAFKA_BROKERS
 kafka_topic = conf.KAFKA_TOPIC
+zk_servers = conf.ZK_SERVERS
 
 app_name = conf.APP_NAME
 checkpoint_dir = conf.CHECKPOINT_DIR
+
+offsetRanges = []
+
+
+def store_offset_ranges(rdd):
+    """保存当前rdd的游标范围信息"""
+    global offsetRanges
+    offsetRanges = rdd.offsetRanges()
+    return rdd
+
+
+def set_zk_offset(rdd):
+    """设置zookeeper的游标"""
+    zk = KazooClient(hosts='127.0.0.1:2181')
+    zk.start()
+
+    for offsetRange in offsetRanges:
+        nodePath = '/'.join(
+            ['/consumers', 'spark-group', 'offsets', str(offsetRange.topic), str(offsetRange.partition)])
+        # 如果存在这个分区，更新分区，否则，新建这个分区并且把游标移动到这次读完的位置(或者这次开始读的位置,再判断)
+        if zk.exists(nodePath):
+            zk.set(nodePath, offsetRange.untilOffset)
+        else:
+            zk.create(nodePath, offsetRange.untilOffset, makepath=True)
+    zk.stop()
+
+
+def get_last_offsets(zkServers, groupID, topic):
+    """
+    返回zk中此消费者消费当前topic中的每个partition的offset
+    :param zkServers:
+    :param groupID:
+    :param topic:
+    :return: [(partition1,offset1), ..., (partitionN,offsetN)]
+    """
+    zk = KazooClient(zkServers, read_only=True)
+    zk.start()
+
+    retvals = {}
+
+    try:
+        nodePath = '/'.join(['/consumers', groupID, 'offsets', topic])
+        if zk.exists(nodePath):
+            for partition in zk.get_children(nodePath):
+                offset, stat = zk.get('/'.join([nodePath, partition]))
+                topicAndPartition = TopicAndPartition(topic, int(partition))
+                retvals[topicAndPartition] = long(offset)
+    except KazooException as e:
+        print(e)
+    finally:
+        zk.stop()
+    return retvals
 
 
 def json2dict(s):
@@ -64,19 +119,9 @@ def send_partition(iter):
     """
     :param iter: list
     :return: None
-    附上官方spark-streaming文档的数据库操作实例
-        def sendPartition(iter):
-            # ConnectionPool is a static, lazily initialized pool of connections
-            connection = ConnectionPool.getConnection()
-            for record in iter:
-                connection.send(record)
-            # return to the pool for future reuse
-            ConnectionPool.returnConnection(connection)
 
-        dstream.foreachRDD(lambda rdd: rdd.foreachPartition(sendPartition))
-
-        Note that the connections in the pool should be lazily created on demand and timed out if not used for a while.
-        This achieves the most efficient sending of data to external systems.
+    官方文档提示采用lazy模式的连接池来进行数据的入库操作 参考 : http://shiyanjun.cn/archives/1097.html
+    关键点: 实现数据库的(序列化)和(反序列化)接口，或者也可以避免,理想效果是只是传入sql语句即可??
     """
     try:
         client = MongoClient(database_driver_host, database_driver_port)
@@ -94,11 +139,27 @@ def create_context(brokers, topic):
     # from the new checkpoint
     print("Creating new context")
     sc = SparkContext(appName=app_name)
-    ssc = StreamingContext(sc, 15)
+    ssc = StreamingContext(sc, 5)
     ssc.checkpoint(checkpoint_dir)
 
-    # 直接读取kafka的topic, 避免和zookeeper交流
-    kvs = KafkaUtils.createDirectStream(ssc, [topic], {"metadata.broker.list": brokers})
+    # 分别从Kafka中获得某个Topic当前每个partition的offset
+    # topicOffsets = get_topic_offsets(brokers, topic)
+
+    # 再从Zookeeper中获得某个consumer消费当前Topic中每个partition的offset
+    lastOffsets = get_last_offsets(zk_servers, "spark-group", topic)
+    print(lastOffsets)
+
+    # 在初始化 kafka stream 的时候
+    # 查看 zookeeper 中是否保存有 offset
+    # 有就从该 offset 进行读取，
+    # 没有就从最新/旧进行读取。
+
+    # 设置kafka的brokers
+    kafkaParams = {"metadata.broker.list": brokers}
+    kvs = KafkaUtils.createDirectStream(ssc, [topic], kafkaParams, fromOffsets=lastOffsets)
+
+    # 在消费 kafka 数据的同时, 将每个 partition 的 offset 保存到 zookeeper 中进行备份
+    kvs.transform(store_offset_ranges).foreachRDD(set_zk_offset)
 
     # json格式转dict格式
     body_dict = kvs.map(json2dict)
@@ -109,7 +170,7 @@ def create_context(brokers, topic):
     # 累加用户流量
     running_counts = user_flux.updateStateByKey(update_func)
 
-    # 数据输出保存
+    # 数据输出保存(这里要注意Dstream->RDD->单个元素,要遍历三层才能获得单个元素)
     running_counts.foreachRDD(lambda rdd: rdd.foreachPartition(send_partition))
 
     return ssc
