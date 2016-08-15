@@ -10,7 +10,7 @@ from kazoo.exceptions import KazooException
 
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
-from pyspark.streaming.kafka import KafkaUtils, TopicAndPartition,OffsetRange
+from pyspark.streaming.kafka import KafkaUtils, TopicAndPartition
 
 from utils import tools
 from conf import conf
@@ -42,7 +42,7 @@ def store_offset_ranges(rdd):
 
 def set_zk_offset(rdd):
     """设置zookeeper的游标"""
-    zk = KazooClient(hosts='127.0.0.1:2181')
+    zk = KazooClient(hosts=zk_servers)
     zk.start()
 
     for offsetRange in offsetRanges:
@@ -50,9 +50,9 @@ def set_zk_offset(rdd):
             ['/consumers', 'spark-group', 'offsets', str(offsetRange.topic), str(offsetRange.partition)])
         # 如果存在这个分区，更新分区，否则，新建这个分区并且把游标移动到这次读完的位置(或者这次开始读的位置,再判断)
         if zk.exists(nodePath):
-            zk.set(nodePath, offsetRange.untilOffset)
+            zk.set(nodePath, bytes(offsetRange.untilOffset))
         else:
-            zk.create(nodePath, offsetRange.untilOffset, makepath=True)
+            zk.create(nodePath, bytes(offsetRange.untilOffset), makepath=True)
     zk.stop()
 
 
@@ -105,6 +105,15 @@ def get_user_and_flux(body_dict):
     return user, flux
 
 
+def get_user_data(body_dict):
+    """
+    :param body_dict: dict
+    :return: type:(str,int) -> ('user',flux)
+    """
+    data_tuple = body_dict.get('user', "no user keyword"), body_dict.get('unix_time', 0), body_dict.get('request_url', 0), body_dict.get('body_bytes_sent', 0)
+    return data_tuple
+
+
 # updata flux
 def update_func(new_values, last_sum):
     """
@@ -112,6 +121,16 @@ def update_func(new_values, last_sum):
     :param last_sum: int
     :return: int
     """
+    return sum(new_values) + (last_sum or 0)
+
+
+def update_state_func(new_values, last_sum):
+    """
+    :param new_values: int
+    :param last_sum: int
+    :return: int
+    """
+
     return sum(new_values) + (last_sum or 0)
 
 
@@ -167,8 +186,13 @@ def create_context(brokers, topic):
     # 获取用户的流量信息
     user_flux = body_dict.map(get_user_and_flux)
 
-    # 累加用户流量
+    # 累加用户流量(总流量)
     running_counts = user_flux.updateStateByKey(update_func)
+
+    # 累加用户流量(最新的每小时流量)
+    hour_counts = user_flux.updateStateByKey(update_func)
+    # 最新的一小时的数据输出保存
+    hour_counts.foreachRDD(lambda rdd: rdd.foreachPartition(send_partition))
 
     # 数据输出保存(这里要注意Dstream->RDD->单个元素,要遍历三层才能获得单个元素)
     running_counts.foreachRDD(lambda rdd: rdd.foreachPartition(send_partition))
