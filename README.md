@@ -55,14 +55,40 @@ bin/kafka-topics.sh --delete --zookeeper localhost:2181 --topic nodeHlsTest
 rmr /brokers/topics/nodeHlsTest
 ```
 
-项目初始化指令:
-`start.sh`
+## 项目初始化指令:
+创建kafka主题:
 ```
 bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 --partitions 2 --topic nodeHls
-db.user_app_stream_flux.drop()
-db.user_app_flux.drop()
-db.user_flux.drop()
+```
+
+创建mongo索引:
+```
+mongo kafka-master:27017
+use hls
 db.user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1}, {background: true})
 db.user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1}, {background: true})
 db.user_flux.ensureIndex({user: 1, timestamp: -1}, {background: true})
+```
+
+启动与重启服务:
+```
+/usr/local/zookeeper/bin/zkServer.sh start
+# wait 5s
+/usr/local/kafka/bin/kafka-server-start.sh -daemon /usr/local/kafka/config/server.properties
+# wait 5s
+
+# master主机宕机情况:
+/usr/local/work_space/hadoop/sbin/stop-dfs.sh
+# wait 5s
+/usr/local/work_space/hadoop/sbin/start-dfs.sh
+# wait 5s
+/usr/local/work_space/spark/sbin/start-master.sh
+
+/home/xzp/HLS_analyze/run.sh &
+
+# slave01主机宕机情况:
+# zk和kfaka同上
+# spark
+/usr/local/work_space/spark/sbin/start-slave.sh
+/home/xzp/producer/async/run.sh &
 ```

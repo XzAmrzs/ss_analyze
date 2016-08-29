@@ -219,29 +219,24 @@ def create_context(brokers, topic):
     sc.addPyFile('./config/conf.py')
 
     ssc = StreamingContext(sc, 10)
-
     lastOffsets = get_last_offsets(zk_servers, "spark-group", topic)
     kafkaParams = {"metadata.broker.list": brokers}
 
     # kvs = KafkaUtils.createDirectStream(ssc, [topic], kafkaParams)
-
     kvs = KafkaUtils.createDirectStream(ssc, [topic], kafkaParams, fromOffsets=lastOffsets)
-
     kvs.checkpoint(60)
-    # 在消费 kafka 数据的同时, 将每个 partition 的 offset 保存到 zookeeper 中进行备份
-    # 这句话在生产环境里面要放到最下面，即入库了以后再移动zookeeper下标的值
-    kvs.transform(store_offset_ranges).foreachRDD(set_zk_offset)
 
     # json格式转dict格式
-    kvs = kvs.map(lambda x: x[1]).filter(valid_func)
-    body_dict = kvs.map(json2dict)
-
+    body_dict = kvs.map(lambda x: x[1]).filter(valid_func).map(json2dict)
     user_app_stream_flux_counts = body_dict.map(get_user_app_stream_flux).reduceByKey(lambda x, y: x + y)
 
     # 数据输出保存(这里要注意Dstream->RDD->单个元素,要遍历三层才能获得单个元素)
     user_app_stream_flux_counts.foreachRDD(
         lambda rdd: rdd.foreachPartition(
             lambda x: store_user_flux(x, col_names=('user_app', 'user_app_flux', 'user_app_stream_flux'))))
+
+    # 在消费完kafka数据, 将每个 partition 的 offset记录更新到zookeeper
+    kvs.transform(store_offset_ranges).foreachRDD(set_zk_offset)
 
     return ssc
 
