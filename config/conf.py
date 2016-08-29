@@ -1,8 +1,7 @@
 # DATABASE
-DATABASE_DRIVER_HOST = 'localhost'
-DATABASE_DRIVER_PORT = 6379
+DATABASE_DRIVER_HOST = 'kafka-master'
+DATABASE_DRIVER_PORT = 27017
 DATABASE_NAME = 'hls'
-COLLECTION_NAME = 'nodeHls'
 
 # utils
 LOG_PATH = '/data/spark_runtime_log/'
