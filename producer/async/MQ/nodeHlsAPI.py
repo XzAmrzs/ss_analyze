@@ -51,5 +51,5 @@ nodeHlsAPI = NodeHlsAPI('http://api.mq.aodianyun.com/v1', 'nodeHls', 'XZP')
 
 if __name__ == '__main__':
     data = nodeHlsAPI.getOffset(0)
-    data = nodeHlsAPI.pullData(0,data['startOffset'])
+    data = nodeHlsAPI.pullData(0, data['startOffset'])
     print(data)

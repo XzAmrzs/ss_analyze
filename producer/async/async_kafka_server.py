@@ -10,11 +10,11 @@ from kafka import SimpleProducer
 
 from MQ.NodeHlsAPI import nodeHlsAPI as MQAPI
 from config import conf
-import tools
+from producer.async.utils import tools
 
 PARTITION_NUM = conf.PARTITION_NUM
-logPath = conf.logPath
-timeYmd = conf.timeYmd
+logPath = conf.log_producer_Path
+timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
 
 
 def deal_with(data_list, producer, kfk_topic, partition):
@@ -22,7 +22,7 @@ def deal_with(data_list, producer, kfk_topic, partition):
     :param data_list: list
     :param producer: SimpleProducer
     :param kfk_topic: str
-    :return:
+    :return: None
     """
     for data in data_list:
         body = data.get('body', 'Error:no body keyword')
@@ -71,7 +71,6 @@ def response(producer, kfk_topic):
 
                     # 处理数据
                     deal_with(data_list, producer, kfk_topic, partition)
-
                     # 更新MQ远程和当前游标的状态
                     MQAPI.setOffset(partition, nextOffset)
                     offset = nextOffset
@@ -92,9 +91,6 @@ def run(brokers, topic):
 
 
 if __name__ == '__main__':
-    # brokers, topic = sys.argv[1:]
-    brokers = ["192.168.1.72:9092", "192.168.1.150:9092"]
-    brokers = ','.join(brokers)
-    topic = 'nodeHls'
+    brokers = conf.KAFKA_BROKERS
+    topic = conf.KAFKA_TOPIC
     run(brokers, topic)
-    time.sleep(5000)

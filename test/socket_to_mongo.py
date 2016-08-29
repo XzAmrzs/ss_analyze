@@ -4,18 +4,18 @@
 # Date: 2016/8/4 0004 上午 10:13
 
 import json
-import time
 import re
-from pymongo import MongoClient
+import time
+
+import conf
 from kazoo.client import KazooClient
 from kazoo.exceptions import KazooException
-
+from pymongo import MongoClient
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
-from pyspark.streaming.kafka import KafkaUtils, TopicAndPartition
+from pyspark.streaming.kafka import TopicAndPartition
 
-from utils import tools
-from conf import conf
+from producer.async.utils import tools
 
 database_name = conf.DATABASE_NAME
 collection_name = conf.COLLECTION_NAME
@@ -23,7 +23,7 @@ database_driver_host = conf.DATABASE_DRIVER_HOST
 database_driver_port = conf.DATABASE_DRIVER_PORT
 
 logPath = conf.LOG_PATH
-timeYmd = conf.TIME_YMD
+timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
 
 kafka_brokers = conf.KAFKA_BROKERS
 kafka_topic = conf.KAFKA_TOPIC
@@ -98,6 +98,7 @@ def json2dict(s):
         return {}
 
 
+
 def get_user_app_stream_flux(body_dict):
     """
     :param body_dict: dict
@@ -107,9 +108,9 @@ def get_user_app_stream_flux(body_dict):
     # 获取APP和stream
     request_url = body_dict.get('request_url', 'error_request_url')
     # 这里不能用简单的'/'来分割,会碰到请求的url有多个'/'的情况
-    # GET //hzsrzj/hzsrzj-stream-1470988831-1470991945170-3042.ts HTTP/1.1
+    # GET http://hzsrzj/hzsrzj-stream-1470988831-1470991945170-3042.ts HTTP/1.1
     # 所以解析的时候直接全转成空格，然后按照任意长度的空格来分割
-    request_url_list = request_url.replace('/',' ')
+    request_url_list = request_url.replace('/', ' ')
     app_stream = re.split(' *', request_url_list)
     app = app_stream[1]
     try:
@@ -117,16 +118,20 @@ def get_user_app_stream_flux(body_dict):
             # 'GET /szqhqh/stream.m3u8 HTTP/1.1'
             stream = app_stream[2].split('.')[0]
         else:
-            # 'GET /1529/1529-stream-1459483582-1459486842823-3041.ts HTTP/1.1'
-            stream = app_stream[2].split('-')[1]
-    except Exception as e: 
-            tools.logout(logPath, app_name, timeYmd, 'Error: '+request_url+ str(app_stream) + str(e), 1)
-            stream = 'error'
+            if 'http' in request_url:
+                app = app_stream[-4]
+                stream = app_stream[-3].split('-')[1]
+            else:
+                # 'GET /1529/1529-stream-1459483582-1459486842823-3041.ts HTTP/1.1'
+                stream = app_stream[2].split('-')[1]
+    except Exception as e:
+        tools.logout(logPath, app_name, timeYmd, 'Error: ' + request_url + str(app_stream) + str(e), 1)
+        stream = 'error'
     # 因为有的是上行数据，没有user这个字段，所以统一归为'no user keyword'字段
     user = body_dict.get('user', "no user keyword")
     flux = body_dict.get('body_bytes_sent', 0)
     unix_time = tools.timeFormat('%Y%m%d', float(body_dict.get('unix_time', 0)))
-    user_app_stream_flux = (user,  unix_time, app, stream), flux
+    user_app_stream_flux = (user, unix_time, app, stream), flux
     return user_app_stream_flux
 
 
