@@ -1,5 +1,5 @@
 # DATABASE
-DATABASE_DRIVER_HOST = 'kafka-master'
+DATABASE_DRIVER_HOST = 'ops'
 DATABASE_DRIVER_PORT = 27017
 DATABASE_NAME = 'hls'
 
@@ -7,14 +7,14 @@ DATABASE_NAME = 'hls'
 LOG_PATH = '/data/spark_runtime_log/'
 
 # Kafka
-KAFKA_BROKERS = 'kafka-master:9092,kafka-slave01:9092,kafka-master:9092,kafka-slave01:9092'
-KAFKA_TOPIC = 'nodeHls'
+KAFKA_BROKERS = 'ops:9092,test2:9092,AD138:9092'
+KAFKA_TOPICS = ['nodeHlsTest']
 
 #zookeeper
-ZK_SERVERS = 'node_1:2181'
+ZK_SERVERS = 'localhost:2181'
 
 # Spark
 APP_NAME = 'HLS_Analyze'
-CHECKPOINT_DIR = 'hdfs://$HOSTNAME:9000/data/checkpoint'
+#CHECKPOINT_DIR = 'hdfs://$HOSTNAME:9000/data/checkpoint'
 
 

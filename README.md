@@ -1,6 +1,4 @@
-﻿利用 Spark Streaming 构建一个高效健壮的流数据计算系统，我们还需要注意以下方面。
-
-1. 需要合理的设置数据处理的间隔，即需要保证每一批数据的处理时间必须小于处理间隔(即processing time < batchDuration)，保证在处理下一
+﻿1. 需要合理的设置数据处理的间隔，即需要保证每一批数据的处理时间必须小于处理间隔(即processing time < batchDuration)，保证在处理下一
    批数据的时候，前一批已经处理完毕。显然这需要由您的 Spark 集群的计算能力还有 input 数据的量决定。
 
 2. 需要尽可能的提升读取 input 数据的能力。在 Spark Streaming 与外部系统如 Kafka，Flume 等集成时，为了避免接收数据环节成为系统的瓶
@@ -26,6 +24,8 @@ kafka:
 Step 1: Start the server
 ```
 bin/kafka-server-start.sh -daemon config/server.properties
+
+/usr/local/kafka_2.11-0.10.0.0/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.11-0.10.0.0/config/server.properties
 ```
 Step 2: Create a topic(replication-factor一定要大于1，否则kafka只有一份数据，leader一旦崩溃程序就没有输入源了，分区数目视输入源而定)
 ```
@@ -65,9 +65,13 @@ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 -
 ```
 mongo kafka-master:27017
 use hls
-db.user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1}, {background: true})
-db.user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1}, {background: true})
-db.user_flux.ensureIndex({user: 1, timestamp: -1}, {background: true})
+db.hls_user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1}, {background: true})
+db.hls_user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1}, {background: true})
+db.hls_user_flux.ensureIndex({user: 1, timestamp: -1}, {background: true})
+
+db.rtmp_user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1,cmd:1}, {background: true})
+db.rtmp_user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1,cmd:1}, {background: true})
+db.rtmp_user_flux.ensureIndex({user: 1, timestamp: -1,cmd:1}, {background: true})
 ```
 
 启动与重启服务:

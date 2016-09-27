@@ -180,10 +180,9 @@ def store_user_flux(iter, col_name):
     """
 
     try:
-        client = SimpleClient(kafka_brokers)
-        producer = SimpleProducer(client, async=True)
+        producer = KafkaProducer(bootstrap_servers=[brokers])
         dao_store_and_update(producer, col_name, iter)
-        client.close()
+
     except Exception as e:
         tools.logout(logPath, app_name, timeYmd, 'Error: ' + str(e), 1)
 
@@ -193,17 +192,17 @@ def dao_store_and_update(producer, col_name, iter):
         if col_name == 'user_app_stream_flux':
             (user, timestamp, app, stream), flux = record
             dt = {"user": user, "timestamp": timestamp, "app": app, "stream": stream, "flux": flux}
-            producer.send_messages(col_name, bytes(json.dumps(dt)))
+            producer.send(col_name, bytes(json.dumps(dt)))
 
         elif col_name == 'user_app_flux':
             (user, timestamp, app), flux = record
             dt = {"user": user, "timestamp": timestamp, "app": app, "flux": flux}
-            producer.send_messages(col_name, bytes(json.dumps(dt)))
+            producer.send(col_name, bytes(json.dumps(dt)))
 
         else:  # if col_name == 'user_flux':
             (user, timestamp), flux = record
             dt = {"user": user, "timestamp": timestamp, "flux": flux}
-            producer.send_messages(col_name, bytes(json.dumps(dt)))
+            producer.send(col_name, bytes(json.dumps(dt)))
 
 
 def create_context(brokers, topic):
