@@ -76,7 +76,7 @@ def get_last_offsets(zkServers, groupID, topics):
     zk = KazooClient(zkServers, read_only=True)
     zk.start()
 
-    retvals = {}
+    last_offsets = {}
 
     try:
         for topic in topics:
@@ -85,45 +85,16 @@ def get_last_offsets(zkServers, groupID, topics):
                 for partition in zk.get_children(nodePath):
                     offset, stat = zk.get('/'.join([nodePath, partition]))
                     topicAndPartition = TopicAndPartition(topic, int(partition))
-                    retvals[topicAndPartition] = long(offset)
+                    last_offsets[topicAndPartition] = long(offset)
     except KazooException as e:
         print(e)
     finally:
         zk.stop()
-    return retvals
+    return last_offsets
 
 
-def get_current_offsets(brokers, topics):
-    try:
-
-        consumer = KafkaConsumer(brokers, 1)
-        # partitions = consumer.partitions_for_topic('nodeHlsTest')
-
-        l = []
-        # for tp in partitions:
-        #     l.append(TopicPartition('nodeHlsTest', tp))
-        #
-        # consumer.assign(l)
-        # for tp in partitions:
-        #     consumer.seek_to_end(TopicPartition('nodeHlsTest', tp))
-
-        # consumer.seek_to_end()
-        # consumer.assign([TopicPartition('nodeHlsTest', 0)])
-        # consumer.seek_to_beginning(TopicPartition('nodeHlsTest', 1))
-
-        for message in consumer:
-            #     message value and key are raw bytes -- decode if necessary!
-            #     e.g., for unicode: `message.value.decode('utf-8')`
-            print ("%s:%d:%d" % (message.topic, message.partition, message.offset))
-            # print ("%s:%d:%d" % (message.topic, message.partition, message.offset))
-        consumer.close()
-
-    except Exception as e:
-        print(e)
-
-
-def valid_func(s):
-    return ('.m3u8' in s) or ('.ts' in s)
+def nodeHls_valid_filter(s):
+    return (s[0] == 'nodeHlsTest') and (('.m3u8' in s[1]) or ('.ts' in s[1]))
 
 
 def json2dict(s):
@@ -252,24 +223,17 @@ if __name__ == '__main__':
 
     ssc = StreamingContext(sc, 15)
 
-    lastOffsets = get_last_offsets(zk_servers, "spark-group", kafka_topics)
-    # currentoffsets = get_current_offsets(kafka_brokers, kafka_topics)
-
-    # if lastOffsets < currentoffsets:
-    #     pass
-
-    # 利用SimpleConsumer获取每个partiton的lastOffset（untilOffset）
-    # 判断每个partition lastOffset与fromOffset的关系
-    # 当lastOffset < fromOffset时，将fromOffset赋值为0
-    # 通过以上步骤完成fromOffset的值矫正。
+    fromOffsets = get_last_offsets(zk_servers, "spark-group", kafka_topics)
 
     kafkaParams = {"metadata.broker.list": kafka_brokers}
 
     # streams = KafkaUtils.createDirectStream(ssc, ['nodeHlsTest'], kafkaParams)
-    streams = KafkaUtils.createDirectStream(ssc, ['nodeHlsTest'], kafkaParams, fromOffsets=lastOffsets)
-
+    streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
+    # 将每个 partition 的 offset记录更新到zookeeper
+    streams.transform(store_offset_ranges).foreachRDD(set_zk_offset)
     # ################### nodeHls数据处理 #############################
-    nodeHls_body_dict = streams.filter(lambda x: x[0] == 'nodeHlsTest').map(lambda x: x[1]).filter(valid_func).map(json2dict)
+    nodeHls_body_dict = streams.filter(nodeHls_valid_filter).map(lambda x: x[1]).map(
+        json2dict)
     # user_time_app_stream_flux
     nodeHls_utasf_counts = nodeHls_body_dict.map(hlsParser).reduceByKey(lambda x, y: x + y)
     nodeHls_utasf_counts.foreachRDD(
@@ -287,8 +251,8 @@ if __name__ == '__main__':
     #         lambda x: store_data(x, 'RtmpFluence',col_names=(
     #             'rtmp_user_flux', 'rtmp_user_app_flux', 'rtmp_user_app_stream_flux'))))
 
-    # 在消费完kafka数据, 将每个 partition 的 offset记录更新到zookeeper
-    streams.transform(store_offset_ranges).foreachRDD(set_zk_offset)
+
+
 
     ssc.start()
     ssc.awaitTermination()

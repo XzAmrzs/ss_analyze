@@ -2,8 +2,8 @@
 import json
 import urllib2
 import time
-# from MQAPI import MQAPI
-
+from ..config import nodeHls_conf as conf
+mq_topic = conf.MQ_TOPIC
 
 class NodeHlsAPI(object):
     def __init__(self, host, topic, userKey):
@@ -35,18 +35,21 @@ class NodeHlsAPI(object):
         return data
 
     def setOffset(self, partition, cur):
-        postUrl = '/'.join([self.host, 'offsets', self.topic, str(partition), self.userKey])
-        print(postUrl)
-        headers = {"Content-type": "application/json"}
-        info = {"offset": cur}
-        data = json.dumps(info)
-        req = urllib2.Request(postUrl, data, headers)
-        postData = urllib2.urlopen(req)
-        postData.close()
-        return 1
+        try:
+            postUrl = '/'.join([self.host, 'offsets', self.topic, str(partition), self.userKey])
+            print(postUrl)
+            headers = {"Content-type": "application/json"}
+            info = {"offset": cur}
+            data = json.dumps(info)
+            req = urllib2.Request(postUrl, data, headers)
+            postData = urllib2.urlopen(req)
+            postData.close()
+            return 1
+        except Exception as e:
+            print e
+            return 0
 
-
-nodeHlsAPI = NodeHlsAPI('http://api.mq.aodianyun.com/v1', 'nodeHls', 'XZP')
+nodeHlsAPI = NodeHlsAPI('http://api.mq.aodianyun.com/v1', mq_topic, 'XZP')
 
 if __name__ == '__main__':
     data = nodeHlsAPI.getOffset(0)
