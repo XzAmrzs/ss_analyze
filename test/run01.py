@@ -22,17 +22,22 @@ import sys
 sys.path.append('/home/xzp/ss_analyze/config/')
 sys.path.append('/home/xzp/ss_analyze/utils/')
 
+import conf
 import tools
 
-database_name = 'hls'
-database_driver_host = 'localhost'
-database_driver_port = 27017
+database_name = conf.DATABASE_NAME
+database_driver_host = conf.DATABASE_DRIVER_HOST
+database_driver_port = conf.DATABASE_DRIVER_PORT
 
-logPath = ''
+logPath = conf.LOG_PATH
 timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
 
+kafka_brokers = conf.KAFKA_BROKERS
+kafka_topics = conf.KAFKA_TOPICS
+zk_servers = conf.ZK_SERVERS
 
-app_name = 'hdfs_test'
+app_name = conf.APP_NAME
+# checkpoint_dir = conf.CHECKPOINT_DIR
 
 offsetRanges = []
 
@@ -43,8 +48,61 @@ def store_offset_ranges(rdd):
     offsetRanges = rdd.offsetRanges()
     return rdd
 
+
+def set_zk_offset(rdd):
+    """设置zookeeper的游标"""
+    zk = KazooClient(hosts=zk_servers)
+    zk.start()
+
+    for offsetRange in offsetRanges:
+        nodePath = '/'.join(
+            ['/consumers', 'spark-group', 'offsets', str(offsetRange.topic), str(offsetRange.partition)])
+        # 如果存在这个分区，更新分区，否则，新建这个分区并且把游标移动到这次读完的位置(或者这次开始读的位置,再判断)
+        if zk.exists(nodePath):
+            zk.set(nodePath, bytes(offsetRange.untilOffset))
+        else:
+            zk.create(nodePath, bytes(offsetRange.untilOffset), makepath=True)
+    zk.stop()
+
+
+def get_last_offsets(zkServers, groupID, topics):
+    """
+    返回zk中此消费者消费当前topic中的每个partition的offset
+    :param zkServers:
+    :param groupID:
+    :param topic:
+    :return: [(partition1,offset1), ..., (partitionN,offsetN)]
+    """
+    zk = KazooClient(zkServers, read_only=True)
+    zk.start()
+
+    last_offsets = {}
+
+    try:
+        for topic in topics:
+            nodePath = '/'.join(['/consumers', groupID, 'offsets', topic])
+            if zk.exists(nodePath):
+                for partition in zk.get_children(nodePath):
+                    offset, stat = zk.get('/'.join([nodePath, partition]))
+                    topicAndPartition = TopicAndPartition(topic, int(partition))
+                    last_offsets[topicAndPartition] = long(offset)
+    except KazooException as e:
+        print(e)
+    finally:
+        zk.stop()
+    return last_offsets
+
+
+# 筛选出nodehls主题的message
+def nodeHls_filter(s):
+    return s[0] == 'nodeHlsTest'
+
+
+# 筛选出nodehlshls主题中的有效下行数据
 def nodeHls_valid_filter(s):
-    return (s[0] == 'nodeHlsTest') and (('.m3u8' in s[1]) or ('.ts' in s[1]))
+    a = ('.m3u8' in s.get('request_url', 'error_request_url')) or ('.ts' in s.get('request_url', 'error_request_url'))
+    b = s.get('http_stat', 400) < 400 and s.get('http_stat', 202) != 202 and s.get('svr_type', 1) != 1
+    return a and b
 
 
 def json2dict(s):
@@ -53,7 +111,7 @@ def json2dict(s):
     :return: dict
     """
     try:
-        dit = json.loads(s, encoding='utf-8')
+        dit = json.loads(s[1], encoding='utf-8')
         return dit
     except Exception as e:
         tools.logout(logPath, app_name, timeYmd, 'Error Load Json: ' + s[1] + ' ' + str(e), 3)
@@ -148,6 +206,7 @@ def dao_store_and_update(db, flag, col_names, iter):
             user, timestamp, app, stream, cmd = record[0]
             data = {"timestamp": timestamp, "cmd": cmd}
         flux = record[1]
+        update_dit = {'$inc': {'flux': flux}}
 
         for index, col_name in enumerate(col_names):
             col = db.get_collection(col_name)
@@ -161,7 +220,6 @@ def dao_store_and_update(db, flag, col_names, iter):
                 data['app'] = app
             if index == 3:
                 data['stream'] = stream
-            update_dit = {'$inc': {'flux': flux}}
             col.update(data, update_dit, True)
 
 
@@ -172,11 +230,17 @@ if __name__ == '__main__':
     sc.addPyFile('./utils/tools.py')
 
     ssc = StreamingContext(sc, 15)
-    streams = ssc.textFileStream("hdfs/data/log")
 
+    fromOffsets = get_last_offsets(zk_servers, "spark-group", kafka_topics)
+
+    kafkaParams = {"metadata.broker.list": kafka_brokers}
+
+    # streams = KafkaUtils.createDirectStream(ssc, ['nodeHlsTest'], kafkaParams)
+    streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
+    # 将每个 partition 的 offset记录更新到zookeeper
+    streams.transform(store_offset_ranges).foreachRDD(set_zk_offset)
     # ################### nodeHls数据处理 #############################
-    nodeHls_body_dict = streams.filter(nodeHls_valid_filter).map(
-        json2dict)
+    nodeHls_body_dict = streams.filter(nodeHls_filter).map(json2dict).filter(nodeHls_valid_filter)
     # user_time_app_stream_flux
     nodeHls_utasf_counts = nodeHls_body_dict.map(hlsParser).reduceByKey(lambda x, y: x + y)
     nodeHls_utasf_counts.foreachRDD(

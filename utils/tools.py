@@ -33,3 +33,4 @@ def logout(logRootPath, logName, timeYMD, message, level):
     elif level is 3:
         logger.error(message)
     return 1
+

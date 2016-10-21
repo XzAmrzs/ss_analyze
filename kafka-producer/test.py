@@ -7,7 +7,7 @@
 
 import time
 
-from servers.nodeHls.nodeHls_kafka_server import NodeHlsProducer
+from servers.nodeHls.nodeHls_test import NodeHlsProducer
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
         NodeHlsProducer(2, 3),
         NodeHlsProducer(4, 5),
         NodeHlsProducer(6, 7),
-        NodeHlsProducer(8, 9)
+        NodeHlsProducer(8, 9),
     }
 
     for t in threads:

@@ -26,14 +26,11 @@ sys.path.append('/home/xzp/ss_analyze/utils/')
 import conf
 import tools
 
-#########################
 database_name = conf.DATABASE_NAME
 database_driver_host = conf.DATABASE_DRIVER_HOST
 database_driver_port = conf.DATABASE_DRIVER_PORT
 database_cols_up = conf.DATABASE_TABLES_HLS_R
-database_cols_up_s = conf.DATABASE_TABLES_HLS_R_S
 database_cols_down = conf.DATABASE_TABLES_HLS_S
-database_cols_down_s = conf.DATABASE_TABLES_HLS_S_S
 
 logPath = conf.LOG_PATH
 timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
@@ -43,8 +40,7 @@ kafka_topics = conf.KAFKA_TOPICS
 zk_servers = conf.ZK_SERVERS
 
 app_name = conf.APP_NAME
-####################################################
-
+# checkpoint_dir = conf.CHECKPOINT_DIR
 
 offsetRanges = []
 
@@ -121,7 +117,18 @@ def nodeHls_filter(s):
 # 筛选出nodehlshls主题中的有效数据
 def nodeHls_valid_filter(s):
     a = ('.m3u8' in s.get('request_url', 'error_request_url')) or ('.ts' in s.get('request_url', 'error_request_url'))
-    return a
+    b = s.get('http_stat', 202) != 202
+    return a and b
+
+
+# 筛选出下行数据
+def nodeHls_recv_filter(s):
+    return s.get('svr_type', 0) != 1
+
+
+# 筛选出上行数据
+def nodeHls_send_filter(s):
+    return s.get('svr_type', 0) == 1
 
 
 def hlsParser(body_dict):
@@ -135,7 +142,6 @@ def hlsParser(body_dict):
     location = body_dict.get('location', 'error_location')
     server_addr = body_dict.get('server_addr', 'error_server_addr')
     svr_type = body_dict.get('svr_type', 0)
-    valid_http_stat = body_dict.get('http_stat', 400) < 400 and body_dict.get('http_stat', 202) != 202
 
     # 这里不能用简单的'/'来分割,会碰到请求的url有多个'/'的情况
     # GET http://hzsrzj/hzsrzj-stream-1470988831-1470991945170-3042.ts HTTP/1.1
@@ -149,7 +155,7 @@ def hlsParser(body_dict):
             # 'GET /szqhqh/stream.m3u8 HTTP/1.1'
             stream = app_stream[2].split('.')[0]
             # m3u8判断是否流畅
-            is_fluency = 1 if request_time < 1 and valid_http_stat else 0
+            is_fluency = 1 if request_time < 1 else 0
             # hls类型，True表示为m3u8,False表示为ts
             hls_type = True
         else:
@@ -162,19 +168,18 @@ def hlsParser(body_dict):
             stream = item[1]
             time_length = item[4].split('.')[0]
             # ts判断是否流畅 切片时间大于3倍的请求时间说明是流畅的
-            is_fluency = 1 if time_length > 3 * request_time and valid_http_stat else 0
+            is_fluency = 1 if time_length > 3 * request_time else 0
             hls_type = False
     except Exception as e:
-        tools.logout(logPath, app_name, timeYmd, 'Error: hlsParser ' + str(e) + str(body_dict), 1)
+        print (e)
         app = 'error'
         # stream = 'error'
         is_fluency = 'error'
         hls_type = 'error'
     # 因为有的是上行数据，没有user这个字段，所以统一归为'no user keyword'字段
     # user = body_dict.get('user', "no user keyword")
-    flux = body_dict.get('body_bytes_sent', 0) if valid_http_stat else 0
+    # flux = body_dict.get('body_bytes_sent', 0)
     timestamp = tools.timeFormat('%Y%m%d', float(body_dict.get('unix_time', 0)))
-    timestamp_hour = tools.timeFormat('%Y%m%d', float(body_dict.get('unix_time', 0)))
     # 如果状态位置取不出来，说明该数据无效，仍是失败数据,直接去取400
     # is_not_less_than
     is_nlt_400 = 1 if body_dict.get('http_stat', 400) >= 400 else 0
@@ -185,13 +190,14 @@ def hlsParser(body_dict):
     data = {'svr_type': svr_type, 'hls_type': hls_type, 'timestamp': timestamp, 'app': app, 'location': location,
             'server_addr': server_addr,
             'is_fluency': is_fluency, 'is_nlt_400': is_nlt_400, 'is_mt_1': is_mt_1, 'is_mt_3': is_mt_3,
-            'request_time': request_time, 'count': 1, 'flux': flux}
-    return hls_app_location_pair(data), hls_s_pair(data), hls_flux_pair(data)
+            'request_time': request_time, 'count': 1}
+    # data = (svr_type, hls_type, timestamp, app, location, server_addr), (is_fluency, is_nlt_400, is_mt_1, is_mt_3, request_time, 1)
+    return hls_app_location_pair(data)
     # return data
 
 
 def hls_app_location_pair(data):
-    return (data['svr_type'], data['hls_type'], data['timestamp'], data['app'], data['location']), \
+    return (data['svr_type'], data['hls_type'], data['timestamp'], data['app'], data['location'],data['server_addr']), \
            (data["is_fluency"], data['is_nlt_400'], data['is_mt_1'], data['is_mt_3'], data['request_time'],
             data['count'])
 
@@ -200,10 +206,6 @@ def hls_s_pair(data):
     return (data['svr_type'], data['hls_type'], data['timestamp'], data['server_addr']), \
            (data["is_fluency"], data['is_nlt_400'], data['is_mt_1'], data['is_mt_3'], data['request_time'],
             data['count'])
-
-
-def hls_flux_pair(data):
-    return (data['svr_type'], data['timestamp']), data['flux']
 
 
 def reduce_function(x, y):
@@ -234,64 +236,35 @@ def store_data(iter, flag, col_names):
 
 def dao_store_and_update(db, flag, col_names, iter):
     for record in iter:
-        if flag == 'hls_alp':
-            svr_type, hls_type, timestamp, app, location = record[0]
-
+        if flag == 'hls_result':
+            svr_type, hls_type, timestamp, app, location, server_addr = record[0]
+            data = {'timestamp': timestamp, 'hls_type': hls_type}
+        else:
+            svr_type, hls_type, timestamp, app, location,server_addr = record[0]
             data = {'timestamp': timestamp, 'hls_type': hls_type}
 
-            sum_fluency, sum_nlt_400, sum_mt_1, sum_mt_3, sum_request_time, sum_counts = record[1]
+        sum_fluency, sum_nlt_400, sum_mt_1, sum_mt_3, sum_request_time, sum_counts = record[1]
 
-            update_dit = {
-                '$inc': dict(sum_fluency=sum_fluency, sum_nlt_400=sum_nlt_400, sum_mt_1=sum_mt_1, sum_mt_3=sum_mt_3,
-                             sum_request_time=sum_request_time, sum_counts=sum_counts)
-            }
+        update_dit = {
+            '$inc': dict(sum_fluency=sum_fluency, sum_nlt_400=sum_nlt_400, sum_mt_1=sum_mt_1, sum_mt_3=sum_mt_3,
+                         sum_request_time=sum_request_time, sum_counts=sum_counts)
+        }
+        # =1说明是上行数据，否则是下行数据
+        if svr_type == 1:
+            tables_list = col_names['up']
+        else:
+            tables_list = col_names['down']
 
-            # =1说明是上行数据，否则是下行数据
-            if svr_type == 1:
-                tables_list = col_names['up']
-            else:
-                tables_list = col_names['down']
-
-            for index, col_name in enumerate(tables_list):
-                col = db.get_collection(col_name)
-                if index == 1:
-                    data['app'] = app
-                if index == 2:
-                    data['location'] = location
-
-                col.update(data, update_dit, True)
-
-        elif flag == 'hls_sp':
-            svr_type, hls_type, timestamp, server_addr = record[0]
-
-            data = {'timestamp': timestamp, 'hls_type': hls_type, 'server_addr': server_addr}
-
-            sum_fluency, sum_nlt_400, sum_mt_1, sum_mt_3, sum_request_time, sum_counts = record[1]
-
-            update_dit = {
-                '$inc': dict(sum_fluency=sum_fluency, sum_nlt_400=sum_nlt_400, sum_mt_1=sum_mt_1, sum_mt_3=sum_mt_3,
-                             sum_request_time=sum_request_time, sum_counts=sum_counts)
-            }
-
-            if svr_type == 1:
-                tables_list = col_names['up']
-            else:
-                tables_list = col_names['down']
-
-            for index, col_name in enumerate(tables_list):
-                col = db.get_collection(col_name)
-                col.update(data, update_dit, True)
-
-        elif flag == 'hls_flux':
-            svr_type, timestamp = record[0]
-            data = {'timestamp': timestamp}
-            if svr_type != 1:
-                sum_flux = record[1]
-                col = db.get_collection('hls_timestamp_flux')
-                update_dit = {
-                    '$inc': dict(flux=sum_flux)
-                }
-                col.update(data, update_dit, True)
+        for index, col_name in enumerate(tables_list):
+            col = db.get_collection(col_name)
+            if index == 1:
+                data['app'] = app
+            if index == 2:
+                data['location'] = location
+            if index == 3:
+                del data['app'], data['location']
+                data['server_addr'] = server_addr
+            col.update(data, update_dit, True)
 
 
 if __name__ == '__main__':
@@ -306,35 +279,30 @@ if __name__ == '__main__':
 
     kafkaParams = {"metadata.broker.list": kafka_brokers}
 
-    streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams)
-    # streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
-
+    # streams = KafkaUtils.createDirectStream(ssc, ['nodeHlsTest'], kafkaParams)
+    streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
     # 将每个 partition 的 offset记录更新到zookeeper
     streams.transform(store_offset_ranges).foreachRDD(set_zk_offset)
     # ################### nodeHls数据处理 #############################
     nodeHls_body_dict = streams.filter(nodeHls_filter).map(json2dict).filter(nodeHls_valid_filter)
     # timestamp, app, hls_type, is_fluency, is_nlt_400, is_mt_1, is_mt_3, request_time
-
-    hls_result = nodeHls_body_dict.map(hlsParser)
-
     # hls_app_location_pair
-    hls_alp_result = hls_result.map(lambda x: x[0]).reduceByKey(reduce_function)
-    hls_alp_result.foreachRDD(
-        lambda rdd: rdd.foreachPartition(
-            lambda x: store_data(x, 'hls_alp', col_names={'down': database_cols_down, 'up': database_cols_up})))
+    hls_result = nodeHls_body_dict.map(hlsParser).reduceByKey(reduce_function)
+    # 按照key值的不同，分成8张表
+    # hls_alp_result = hls_alp.map(lambda x: x[0]).reduceByKey(reduce_function)
+    # hls_sp_result = hls_alp.map(lambda x: x[1]).reduceByKey(reduce_function)
 
-    hls_sp_result = hls_result.map(lambda x: x[1]).reduceByKey(reduce_function)
-    hls_sp_result.foreachRDD(
+    hls_result.foreachRDD(
         lambda rdd: rdd.foreachPartition(
-            lambda x: store_data(x, 'hls_sp', col_names={'down': database_cols_down_s, 'up': database_cols_up_s})))
+            lambda x: store_data(x, 'hls_result', col_names={'down': database_cols_down, 'up': database_cols_up})))
 
-    hls_flux_result = hls_result.map(lambda x: x[2]).reduceByKey(lambda x, y: x + y)
-    hls_flux_result.foreachRDD(
-        lambda rdd: rdd.foreachPartition(
-            lambda x: store_data(x, 'hls_flux', col_names={'down': database_cols_down, 'up': database_cols_up})))
+    # hls_alp_result.foreachRDD(
+    #     lambda rdd: rdd.foreachPartition(
+    #         lambda x: store_data(x, 'hls_alp', col_names={'down': database_cols_down, 'up': database_cols_up})))
+    #
+    # hls_sp_result.foreachRDD(
+    #     lambda rdd: rdd.foreachPartition(
+    #         lambda x: store_data(x, 'hls_sp', col_names={'down': database_cols_down, 'up': database_cols_up})))
 
     ssc.start()
     ssc.awaitTermination()
-
-
-

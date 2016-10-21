@@ -5,7 +5,6 @@ import threading
 import time
 
 from kafka import KafkaProducer
-
 from ..MQ.RtmpFluenceAPI import rtmpFluenceAPI as MQAPI
 from ..config import RtmpFluence_conf as conf
 from ..utils import tools
@@ -46,7 +45,7 @@ def response(producer, kfk_topic):
     # 解析处理数据这部分，应该单独拿出来，继承MQAPI，然后做一个nodehlsAPI
     # kafka应当只负责从各个MQ分区(或者循环接收也丢弃)接受格式化数据并发布到队列当中
     while True:
-        for partition in range(1, 3):
+        for partition in range(PARTITION_NUM + 1):
             try:
                 offsets = MQAPI.getOffset(partition)
                 startOffset, offset, lastOffset = offsets['startOffset'], offsets['offset'], offsets['lastOffset']

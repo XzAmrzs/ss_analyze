@@ -65,20 +65,34 @@ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 -
 ```
 mongo kafka-master:27017
 use hls
+db.hls_timestamp_flux.ensureIndex({timestamp: -1}, {background: true})
 db.hls_user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1}, {background: true})
 db.hls_user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1}, {background: true})
 db.hls_user_flux.ensureIndex({user: 1, timestamp: -1}, {background: true})
 
+
 db.rtmp_user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1,cmd:1}, {background: true})
 db.rtmp_user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1,cmd:1}, {background: true})
 db.rtmp_user_flux.ensureIndex({user: 1, timestamp: -1,cmd:1}, {background: true})
+
+db.hls_timestamp_flux.ensureIndex({timestamp: -1}, {background: true})
+db.hls_r.ensureIndex({hls_type:1,timestamp: -1}, {background: true})
+db.hls_s.ensureIndex({hls_type:1,timestamp: -1}, {background: true})
+db.hls_r_app.ensureIndex({hls_type:1,timestamp: -1,app:1}, {background: true})
+db.hls_s_app.ensureIndex({hls_type:1,timestamp: -1,app:1}, {background: true})
+db.hls_r_app_location.ensureIndex({hls_type:1,timestamp: -1,app:1,location:1}, {background: true})
+db.hls_s_app_location.ensureIndex({hls_type:1,timestamp: -1,app:1,location:1}, {background: true})
+db.hls_r_server.ensureIndex({hls_type:1,timestamp: -1,server_addr:1}, {background: true})
+db.hls_s_server.ensureIndex({hls_type:1,timestamp: -1,server_addr:1}, {background: true})
+
 ```
 
 启动与重启服务:
 ```
-/usr/local/zookeeper/bin/zkServer.sh start
+mongod --fork --logpath /data/logs/mongodb/mongo.log --logappend
+/usr/local/zookeeper-3.4.8/bin/zkServer.sh start
 # wait 5s
-/usr/local/kafka/bin/kafka-server-start.sh -daemon /usr/local/kafka/config/server.properties
+/usr/local/kafka_2.11-0.10.0.0/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.11-0.10.0.0/config/server.properties
 # wait 5s
 
 # master主机宕机情况:
@@ -88,11 +102,17 @@ db.rtmp_user_flux.ensureIndex({user: 1, timestamp: -1,cmd:1}, {background: true}
 # wait 5s
 /usr/local/work_space/spark/sbin/start-master.sh
 
-/home/xzp/HLS_analyze/run.sh &
+nohup sh /home/xzp/ss_analyze/run.sh &
 
 # slave01主机宕机情况:
 # zk和kfaka同上
 # spark
 /usr/local/work_space/spark/sbin/start-slave.sh
 /home/xzp/producer/async/run.sh &
+
+
+kill命令
+ps -ef|grep nodeHls_multiprocess |grep -v grep |awk '{print "kill -9",$2}' |sh
+jps|grep -i kafka|grep -v grep |awk '{print "kill -9",$1}' |sh
+jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
 ```
