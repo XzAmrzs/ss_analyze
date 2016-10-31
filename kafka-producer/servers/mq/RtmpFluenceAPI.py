@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 from MQAPI import MQAPI
-from ..config import RtmpFluence_conf as conf
+from ..config import rtmpFluence_conf as conf
 mq_topic = conf.MQ_TOPIC
 mq_url = conf.MQ_URL
 mq_userKey = conf.MQ_USERKEY

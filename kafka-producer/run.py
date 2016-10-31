@@ -8,15 +8,17 @@
 import time
 
 from servers.nodeHls.nodeHls_kafka_multiprocess import NodeHlsProducer
+from servers.rtmpFluence.rtmp_kafka_multiprocess import RtmpProducer
 
 
 def main():
     threads = {
         NodeHlsProducer(0, 1),
-        NodeHlsProducer(2, 3),
-        NodeHlsProducer(4, 5),
-        NodeHlsProducer(6, 7),
-        NodeHlsProducer(8, 9)
+        #NodeHlsProducer(2, 3),
+        #NodeHlsProducer(4, 5),
+        #NodeHlsProducer(6, 7),
+        #NodeHlsProducer(8, 9),
+        RtmpProducer(0, 2)
     }
 
     for t in threads:

@@ -2,43 +2,42 @@
 from __future__ import print_function
 
 import json
-import time
 import multiprocessing
+
+import time
+
+# import os
+# import sys
+# reload(sys)
+# sys.setdefaultencoding("utf-8")
 
 from kafka import KafkaProducer
 
 from ..mq.NodeHlsAPI import mqAPI as MQAPI
 from ..config import nodeHls_conf as conf
 from ..utils import tools
-from ..utils.ipip import IP
+# from ..utils.ipip import IP
 
 PARTITION_NUM = conf.PARTITION_NUM
 LOG_PATH = conf.log_producer_Path
 TIMESTAMP = tools.timeFormat('%Y%m%d', int(time.time()))
 
-import os
-import sys
-import time
-reload(sys)
-sys.setdefaultencoding("utf-8")
-a = os.path.abspath("mydata4vipweek2.dat")
+kfk_brokers = conf.KAFKA_BROKERS
+kfk_topic = conf.KAFKA_TOPIC
+producer = KafkaProducer(bootstrap_servers=kfk_brokers)
+
+# a = os.path.abspath("mydata4vipweek2.dat")
+# IP.load(a)
 
 
 class NodeHlsProducer(multiprocessing.Process):
     def __init__(self, start_partition, stop_partition):
         super(NodeHlsProducer, self).__init__()
+        self.daemon = True
         # 自定义变量
-        self.kfk_brokers = conf.KAFKA_BROKERS
-        self.kfk_topic = conf.KAFKA_TOPIC
-
-        self.producer = KafkaProducer(bootstrap_servers=self.kfk_brokers)
-
         if start_partition < 0 and stop_partition < PARTITION_NUM:
             raise ValueError("start_partition or stop_partition error ")
         self.partition_range = (start_partition, stop_partition + 1)
-
-        # 加载IP数据文件
-        IP.load(a)
 
     def run(self):
         self.response()
@@ -61,7 +60,7 @@ class NodeHlsProducer(multiprocessing.Process):
                     if offset >= lastOffset:
                         continue
                     counts = lastOffset - offset
-                    print('Starting partition ' + str(partition) + ' 数据条数: ' + str(counts))
+                    print(kfk_topic + ' Starting partition ' + str(partition) + ' 数据条数: ' + str(counts))
                     start = time.clock()
                     while offset < lastOffset:
                         try:
@@ -71,12 +70,12 @@ class NodeHlsProducer(multiprocessing.Process):
 
                             # 处理数据
 
-                            self.deal_with(data_list, partition)
+                            self.deal_with(data_list)
 
                             # 更新MQ远程和当前游标的状态
                             offset = nextOffset
                         except Exception as e:
-                            tools.logout(LOG_PATH, self.kfk_topic, TIMESTAMP,
+                            tools.logout(LOG_PATH, kfk_topic, TIMESTAMP,
                                          'Error 1: ' + str(partition) + ' ' + str(offset) + ' EX:' + str(e), 1)
                     MQAPI.setOffset(partition, offset)
                     end = time.clock()
@@ -84,14 +83,14 @@ class NodeHlsProducer(multiprocessing.Process):
                     if interval > 300:
                         tools.logout(LOG_PATH, 'MQ Error', TIMESTAMP,
                                      'Error Pull MQ Data Counts:' + str(counts) + ' time out :' + str(interval), 1)
-                    # print('Stop partition ' + str(partition) + ' offset=' + str(offset) + ' lastOffset=' + str(
-                    #     lastOffset))
+                        # print('Stop partition ' + str(partition) + ' offset=' + str(offset) + ' lastOffset=' + str(
+                        #     lastOffset))
 
                 except Exception as e:
-                    tools.logout(LOG_PATH, self.kfk_topic, TIMESTAMP,
+                    tools.logout(LOG_PATH, kfk_topic, TIMESTAMP,
                                  'Error 2:' + str(partition) + 'EX:' + str(e), 1)
 
-    def deal_with(self, data_list, partition):
+    def deal_with(self, data_list):
         """
         :param data_list: list
         :param partition:
@@ -104,19 +103,21 @@ class NodeHlsProducer(multiprocessing.Process):
                 body_dict = json.loads(body)
 
                 # 进行ip查找地区的数据预处理
-                remote_addr = body_dict.get('remote_addr', 'error_remote_addr')
-                location = IP.find(remote_addr).split('\t')[1]
-                del body_dict['remote_addr']
-                body_dict['location'] = location
+                # remote_addr = body_dict.get('remote_addr', 'error_remote_addr')
+                # location = IP.find(remote_addr).split('\t')[1]
+                # del body_dict['remote_addr']
+                # body_dict['location'] = location
 
-                self.producer.send(self.kfk_topic, key=bytes(self.kfk_topic),
-                                   value=bytes(json.dumps(body_dict, ensure_ascii=False)))
+                producer.send(kfk_topic, key=bytes(kfk_topic),
+                              value=bytes(json.dumps(body_dict, ensure_ascii=False)))
 
             except Exception as e:
-                offset = data.get('offset', 'Error:no offset keyword')
-                tools.logout(LOG_PATH, self.kfk_topic, TIMESTAMP,
-                             str(e) + ' Error data: partition: ' + str(partition) + ' offset: ' + str(
-                                 offset) + '\n' + str(data), 3)
+                print(e)
+                pass
+                # offset = data.get('offset', 'Error:no offset keyword')
+                # tools.logout(LOG_PATH, kfk_topic, TIMESTAMP,
+                #              str(e) + ' Error data: partition: ' + str(partition) + ' offset: ' + str(
+                #                  offset) + '\n' + str(data), 3)
 
 
 if __name__ == '__main__':

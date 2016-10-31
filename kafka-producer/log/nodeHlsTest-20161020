@@ -1,2 +1,0 @@
-2016-10-20 10:49:12,226 - nodeHlsTest - ERROR - Extra data: line 1 column 7 - line 1 column 231 (char 6 - 230) Error data: partition: 0 offset: 1120792984
-{u'body': u'"user":"",119.185.229.97 - - [16/Oct/2016:10:40:38 +0800] "GET /wsp_21609_1467031690/28d8950702bc162253172efbdb5c41e7.m3u8 HTTP/1.1" 400 665 "http://21609.wx.cdn.aodianyun.com/layout/party/15536?from=timeline&isappinstalled=0" "-"', u'offset': 1120792984}

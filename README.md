@@ -29,7 +29,7 @@ bin/kafka-server-start.sh -daemon config/server.properties
 ```
 Step 2: Create a topic(replication-factor一定要大于1，否则kafka只有一份数据，leader一旦崩溃程序就没有输入源了，分区数目视输入源而定)
 ```
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 --partitions 1 --topic nodeHlsTest
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 --partitions 1 --topic nodeHls
 ```
 Step 3: Describe a topic
 ```
@@ -54,6 +54,10 @@ bin/kafka-topics.sh --delete --zookeeper localhost:2181 --topic nodeHlsTest
 # 如果仍然只是仅仅被标记了删除(zk中并没有被删除)，那么启动zkCli.sh,输入如下指令
 rmr /brokers/topics/nodeHlsTest
 ```
+查看kafka相应分区的最新下标
+```
+bin/kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic nodeHls --time -1
+```
 
 ## 项目初始化指令:
 创建kafka主题:
@@ -65,25 +69,31 @@ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 -
 ```
 mongo kafka-master:27017
 use hls
-db.hls_timestamp_flux.ensureIndex({timestamp: -1}, {background: true})
-db.hls_user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1}, {background: true})
-db.hls_user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1}, {background: true})
-db.hls_user_flux.ensureIndex({user: 1, timestamp: -1}, {background: true})
+
+db.hls_r.ensureIndex({timestamp: -1}, {background: true})
+db.hls_s.ensureIndex({timestamp: -1}, {background: true})
+db.hls_r_app.ensureIndex({timestamp: -1,app:1}, {background: true})
+db.hls_s_app.ensureIndex({timestamp: -1,app:1}, {background: true})
+db.hls_r_app_location.ensureIndex({timestamp: -1,app:1,location:1}, {background: true})
+db.hls_s_app_location.ensureIndex({timestamp: -1,app:1,location:1}, {background: true})
+db.hls_r_server.ensureIndex({timestamp: -1,server_addr:1}, {background: true})
+db.hls_s_server.ensureIndex({timestamp: -1,server_addr:1}, {background: true})
 
 
-db.rtmp_user_app_stream_flux.ensureIndex({user: 1, timestamp: -1,app:1,stream:1,cmd:1}, {background: true})
-db.rtmp_user_app_flux.ensureIndex({user: 1, timestamp: -1,app:1,cmd:1}, {background: true})
-db.rtmp_user_flux.ensureIndex({user: 1, timestamp: -1,cmd:1}, {background: true})
+db.rtmp_r.ensureIndex({timestamp: -1}, {background: true})
+db.rtmp_r_app.ensureIndex({timestamp: -1,app:1}, {background: true})
+db.rtmp_r_user.ensureIndex({timestamp: -1,User:1}, {background: true})
+db.rtmp_r_server.ensureIndex({timestamp: -1,SvrIp:1}, {background: true})
 
-db.hls_timestamp_flux.ensureIndex({timestamp: -1}, {background: true})
-db.hls_r.ensureIndex({hls_type:1,timestamp: -1}, {background: true})
-db.hls_s.ensureIndex({hls_type:1,timestamp: -1}, {background: true})
-db.hls_r_app.ensureIndex({hls_type:1,timestamp: -1,app:1}, {background: true})
-db.hls_s_app.ensureIndex({hls_type:1,timestamp: -1,app:1}, {background: true})
-db.hls_r_app_location.ensureIndex({hls_type:1,timestamp: -1,app:1,location:1}, {background: true})
-db.hls_s_app_location.ensureIndex({hls_type:1,timestamp: -1,app:1,location:1}, {background: true})
-db.hls_r_server.ensureIndex({hls_type:1,timestamp: -1,server_addr:1}, {background: true})
-db.hls_s_server.ensureIndex({hls_type:1,timestamp: -1,server_addr:1}, {background: true})
+db.rtmp_s.ensureIndex({timestamp: -1}, {background: true})
+db.rtmp_s_app.ensureIndex({timestamp: -1,app:1}, {background: true})
+db.rtmp_s_user.ensureIndex({timestamp: -1,User:1}, {background: true})
+db.rtmp_s_server.ensureIndex({timestamp: -1,SvrIp:1}, {background: true})
+
+db.rtmp_f.ensureIndex({timestamp: -1}, {background: true})
+db.rtmp_f_app.ensureIndex({timestamp: -1,app:1}, {background: true})
+db.rtmp_f_user.ensureIndex({timestamp: -1,User:1}, {background: true})
+db.rtmp_f_server.ensureIndex({timestamp: -1,SvrIp:1}, {background: true})
 
 ```
 

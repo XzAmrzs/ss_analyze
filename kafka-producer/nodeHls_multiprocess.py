@@ -62,6 +62,7 @@ def response(producer, kfk_topic, partition_range):
     while True:
         for partition in range(*partition_range):
             try:
+                time.sleep(3)
                 offsets = MQAPI.getOffset(partition)
                 startOffset, offset, lastOffset = offsets['startOffset'], offsets['offset'], offsets['lastOffset']
 
