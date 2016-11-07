@@ -3,7 +3,7 @@
 # Author:  Xzp
 # Date: 2016/8/4 0004 下午 2:44
 MQ_TOPIC = 'nodeHls'
-MQ_URL = 'http://api.mq.aodianyun.com/v1'
+MQ_URL = ''
 MQ_USERKEY = 'XZPTest'
 # MQ_USERKEY = 'XZP'
 
