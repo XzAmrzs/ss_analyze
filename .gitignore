@@ -2,3 +2,4 @@
 kafka-producer/.idea
 *.pyc
 *conf.py
+.svn
