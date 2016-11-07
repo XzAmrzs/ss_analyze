@@ -1,73 +1,140 @@
+# coding=utf-8
 # DATABASE
 # DATABASE_DRIVER_HOST = 'ops'
 DATABASE_DRIVER_HOST = '10.161.135.123'
 DATABASE_DRIVER_PORT = 27017
-DATABASE_NAME_HLS = 'hls_xzp'
-DATABASE_NAME_RTMP = 'rtmp_xzp'
+DATABASE_NAME_HLS = 'HlsAnalysis'
+DATABASE_NAME_RTMP = 'RtmpAnalysis'
 
-TABLES_HLS_R = (
-    'hls_r',
-    'hls_r_app',
-    'hls_r_app_location',
-
+TABLES_HLS_UP_A = (
+    'hls_up',
+    'hls_up_a',
+)
+TABLES_HLS_UP_S = (
+    'hls_up_s',
 )
 
-TABLES_HLS_R_S = (
-    'hls_r_server',
+TABLES_HLS_UP_ASF = (
+    'hls_up_app_stream',
+)
+TABLES_HLS_UP_ASHF = (
+    'hls_up_app_stream_hour',
+)
+
+TABLES_HLS_UP_UF = (
+    'hls_up_user',
+)
+
+TABLES_HLS_UP_UFH = (
+    'hls_up_user_hour',
+)
+
+TABLES_HLS_UP_HC = (
+    'hls_up_httpCode',
+)
+
+TABLES_HLS_DOWN_A = (
+    'hls_down',
+    'hls_down_a',
+)
+TABLES_HLS_DOWN_S = (
+    'hls_down_s',
+)
+
+TABLES_HLS_DOWN_ASF = (
+    'hls_down_app_stream',
+)
+TABLES_HLS_DOWN_ASHF = (
+    'hls_down_app_stream_hour',
+)
+
+TABLES_HLS_DOWN_UF = (
+    'hls_down_user',
+)
+
+TABLES_HLS_DOWN_UFH = (
+    'hls_down_user_hour',
+)
+
+TABLES_HLS_DOWN_HC = (
+    'hls_down_httpCode',
 )
 
 
-TABLES_HLS_S = (
-    'hls_s',
-    'hls_s_app',
-    'hls_s_app_location',
+TABLES_RTMP_UP_A = (
+    'rtmp_up',
+    'rtmp_up_a',
 )
 
-TABLES_HLS_S_S = (
-    'hls_s_server',
+TABLES_RTMP_UP_S = (
+    'rtmp_up_s',
 )
 
-TABLES_RTMP_R = (
-    'rtmp_r',
-    'rtmp_r_app',
-
+TABLES_RTMP_UP_ASF = (
+    'rtmp_up_app_stream',
+)
+TABLES_RTMP_UP_ASHF = (
+    'rtmp_up_app_stream_hour',
 )
 
-TABLES_RTMP_R_USER = (
-    'rtmp_r_user',
+TABLES_RTMP_UP_UF = (
+    'rtmp_up_user',
 )
 
-TABLES_RTMP_R_S = (
-    'rtmp_r_server',
-)
-
-
-TABLES_RTMP_S = (
-    'rtmp_s',
-    'rtmp_s_app',
-)
-
-TABLES_RTMP_S_USER = (
-    'rtmp_s_user',
-)
-
-TABLES_RTMP_S_S = (
-    'rtmp_s_server',
+TABLES_RTMP_UP_UFH = (
+    'rtmp_up_user_hour',
 )
 
 
-TABLES_RTMP_F = (
-    'rtmp_f',
-    'rtmp_f_app',
+TABLES_RTMP_DOWN_A = (
+    'rtmp_down',
+    'rtmp_down_a',
 )
 
-TABLES_RTMP_F_USER = (
-    'rtmp_f_user',
+TABLES_RTMP_DOWN_S = (
+    'rtmp_down_s',
 )
 
-TABLES_RTMP_F_S = (
-    'rtmp_f_server',
+TABLES_RTMP_DOWN_ASF = (
+    'rtmp_down_app_stream',
 )
+TABLES_RTMP_DOWN_ASHF = (
+    'rtmp_down_app_stream_hour',
+)
+
+TABLES_RTMP_DOWN_UF = (
+    'rtmp_down_user',
+)
+
+TABLES_RTMP_DOWN_UFH = (
+    'rtmp_down_user_hour',
+)
+
+TABLES_RTMP_FORWARD_A = (
+    'rtmp_forward',
+    'rtmp_forward_a',
+)
+
+TABLES_RTMP_FORWARD_S = (
+    'rtmp_forward_s',
+)
+
+TABLES_RTMP_FORWARD_ASF = (
+    'rtmp_forward_app_stream',
+)
+TABLES_RTMP_FORWARD_ASHF = (
+    'rtmp_forward_app_stream_hour',
+)
+
+TABLES_RTMP_FORWARD_UF = (
+    'rtmp_forward_user',
+)
+
+TABLES_RTMP_FORWARD_UFH = (
+    'rtmp_forward_user_hour',
+)
+
+
 # utils
 LOG_PATH = '/data/spark_runtime_log/'
 
@@ -83,5 +150,3 @@ ZK_SERVERS = 'localhost:2181'
 
 # Spark
 APP_NAME = 'HLS_Analyze'
-
-

@@ -2,21 +2,16 @@
 from __future__ import print_function
 
 import json
-import multiprocessing
-
+from multiprocessing import Process,JoinableQueue
+# import threading
 import time
 
-# import os
-# import sys
-# reload(sys)
-# sys.setdefaultencoding("utf-8")
 
 from kafka import KafkaProducer
 
 from ..mq.NodeHlsAPI import mqAPI as MQAPI
 from ..config import nodeHls_conf as conf
 from ..utils import tools
-# from ..utils.ipip import IP
 
 PARTITION_NUM = conf.PARTITION_NUM
 LOG_PATH = conf.log_producer_Path
@@ -26,11 +21,8 @@ kfk_brokers = conf.KAFKA_BROKERS
 kfk_topic = conf.KAFKA_TOPIC
 producer = KafkaProducer(bootstrap_servers=kfk_brokers)
 
-# a = os.path.abspath("mydata4vipweek2.dat")
-# IP.load(a)
 
-
-class NodeHlsProducer(multiprocessing.Process):
+class NodeHlsProducer(Process):
     def __init__(self, start_partition, stop_partition):
         super(NodeHlsProducer, self).__init__()
         self.daemon = True
@@ -101,13 +93,6 @@ class NodeHlsProducer(multiprocessing.Process):
 
             try:
                 body_dict = json.loads(body)
-
-                # 进行ip查找地区的数据预处理
-                # remote_addr = body_dict.get('remote_addr', 'error_remote_addr')
-                # location = IP.find(remote_addr).split('\t')[1]
-                # del body_dict['remote_addr']
-                # body_dict['location'] = location
-
                 producer.send(kfk_topic, key=bytes(kfk_topic),
                               value=bytes(json.dumps(body_dict, ensure_ascii=False)))
 
@@ -121,5 +106,19 @@ class NodeHlsProducer(multiprocessing.Process):
 
 
 if __name__ == '__main__':
-    NodeHlsProducer(0, 1).start()
-    time.sleep(5000)
+    def run2():
+        queue = JoinableQueue()
+        worker_list = list()
+        for i in range(5):
+            worker = NodeHlsProducer(0, 1, queue)
+            worker_list.append(worker)
+            worker.start()
+        queue.join()
+
+        for news_id in range(10):
+            queue.put('put:%s' % news_id)
+        for i in range(5):
+            queue.put(None)
+        for w in worker_list:
+            w.join()
+

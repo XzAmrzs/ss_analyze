@@ -70,31 +70,58 @@ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 -
 mongo kafka-master:27017
 use hls
 
-db.hls_r.ensureIndex({timestamp: -1}, {background: true})
-db.hls_s.ensureIndex({timestamp: -1}, {background: true})
-db.hls_r_app.ensureIndex({timestamp: -1,app:1}, {background: true})
-db.hls_s_app.ensureIndex({timestamp: -1,app:1}, {background: true})
-db.hls_r_app_location.ensureIndex({timestamp: -1,app:1,location:1}, {background: true})
-db.hls_s_app_location.ensureIndex({timestamp: -1,app:1,location:1}, {background: true})
-db.hls_r_server.ensureIndex({timestamp: -1,server_addr:1}, {background: true})
-db.hls_s_server.ensureIndex({timestamp: -1,server_addr:1}, {background: true})
+db.hls_r.ensureIndex({timestamp: -1}, {background: true,unique:true, dropDups:true})
+db.hls_s.ensureIndex({timestamp: -1}, {background: true,unique:true, dropDups:true})
+# 添加单独的后者索引,chakan 是否用到
+
+db.hls_up.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_down.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_up_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_down_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_up_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_down_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_down_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.hls_down_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.hls_down_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.hls_down_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.hls_down_httpCode.ensureIndex({httpCode:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.HlsDayData.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
+db.HlsUserData.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.HlsStreamData.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 
 
-db.rtmp_r.ensureIndex({timestamp: -1}, {background: true})
-db.rtmp_r_app.ensureIndex({timestamp: -1,app:1}, {background: true})
-db.rtmp_r_user.ensureIndex({timestamp: -1,User:1}, {background: true})
-db.rtmp_r_server.ensureIndex({timestamp: -1,SvrIp:1}, {background: true})
 
-db.rtmp_s.ensureIndex({timestamp: -1}, {background: true})
-db.rtmp_s_app.ensureIndex({timestamp: -1,app:1}, {background: true})
-db.rtmp_s_user.ensureIndex({timestamp: -1,User:1}, {background: true})
-db.rtmp_s_server.ensureIndex({timestamp: -1,SvrIp:1}, {background: true})
 
-db.rtmp_f.ensureIndex({timestamp: -1}, {background: true})
-db.rtmp_f_app.ensureIndex({timestamp: -1,app:1}, {background: true})
-db.rtmp_f_user.ensureIndex({timestamp: -1,User:1}, {background: true})
-db.rtmp_f_server.ensureIndex({timestamp: -1,SvrIp:1}, {background: true})
 
+db.rtmp_up.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_up_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_down.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_up_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+rtmp_forward
+rtmp_forward_app
+rtmp_forward_server
+
+
+db.hls_up.drop()
+db.hls_down.drop()
+db.hls_up_s.drop()
+db.hls_down_s.drop()
+db.hls_up_a.drop()
+db.hls_down_a.drop()
+db.hls_down_user.drop()
+db.hls_down_user_hour.drop()
+db.hls_down_app_stream.drop()
+db.hls_down_app_stream_hour.drop()
+db.hls_down_httpCode.drop()
+db.HlsDayData.drop()
+db.HlsUserData.drop()
+db.HlsStreamData.drop()
 ```
 
 启动与重启服务:

@@ -1,4 +1,5 @@
 # coding=utf-8
+import json
 import logging
 import time
 
@@ -6,6 +7,15 @@ import time
 def timeFormat(format, intTime):
     returnTime = time.strftime(format, time.localtime(intTime))
     return returnTime
+
+
+def json2dict(s, log_path, app_name, timeYmd):
+    try:
+        dit = json.loads(s[1], encoding='utf-8')
+        return dit
+    except Exception as e:
+        logout(log_path, app_name, timeYmd, 'Error Load Json: ' + s[1] + ' ' + str(e), 3)
+        return {}
 
 
 def logout(logRootPath, logName, timeYMD, message, level):

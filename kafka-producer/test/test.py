@@ -28,14 +28,14 @@ for i in range(0, 10):
     print(data['lastOffset']-data['offset'])
     # data2 = mqAPI.pullData(0, data['offset'])
     # print(data2)
-    print (mqAPI.setOffset(i, data['lastOffset']))
-
-for i in range(0, 3):
-    data = rtmpAPI.getOffset(i)
-    print(data['lastOffset']-data['offset'])
+    # print (mqAPI.setOffset(i, data['lastOffset']))
+#
+# for i in range(0, 3):
+#     data = rtmpAPI.getOffset(i)
+#     print(data['lastOffset']-data['offset'])
     # data2 = mqAPI.pullData(0, data['offset'])
     # print(data2)
-    print (rtmpAPI.setOffset(i, data['lastOffset']))
+    # print (rtmpAPI.setOffset(i, data['lastOffset']))
 #
 
 # print(data)

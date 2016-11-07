@@ -12,5 +12,6 @@ log_producer_Path = './log/'
 
 # Kafka
 # KAFKA_BROKERS = ['kafka-master:9092', 'kafka-slave01:9092', 'kafka-slave02:9092']
-KAFKA_BROKERS = ['ops:9092','test2:9092','AD138:9092']
+KAFKA_BROKERS = ['192.168.1.145:9092','192.168.1.150:9092','192.168.1.138:9092']
+
 KAFKA_TOPIC = 'RtmpFluence'

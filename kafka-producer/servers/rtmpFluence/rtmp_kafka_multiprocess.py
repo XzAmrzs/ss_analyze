@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import json
 import multiprocessing
+import threading
 import time
 
 
@@ -21,7 +22,7 @@ kfk_topic = conf.KAFKA_TOPIC
 producer = KafkaProducer(bootstrap_servers=kfk_brokers)
 
 
-class RtmpProducer(multiprocessing.Process):
+class RtmpProducer(threading.Thread):
     def __init__(self, start_partition, stop_partition):
         super(RtmpProducer, self).__init__()
         self.daemon=True
@@ -51,7 +52,7 @@ class RtmpProducer(multiprocessing.Process):
                     if offset >= lastOffset:
                         continue
                     counts = lastOffset - offset
-                    print(kfk_topic+' Starting partition ' + str(partition) + ' 数据条数: ' + str(counts))
+                    # print(kfk_topic+' Starting partition ' + str(partition) + ' 数据条数: ' + str(counts))
                     start = time.clock()
                     while offset < lastOffset:
                         try:
