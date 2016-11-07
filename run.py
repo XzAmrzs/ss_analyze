@@ -500,8 +500,8 @@ if __name__ == '__main__':
 
     kafkaParams = {"metadata.broker.list": kafka_brokers}
 
-    streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams)
-    # streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
+    # streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams)
+    streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
 
     # 将每个 partition 的 offset记录更新到zookeeper
     streams.transform(store_offset_ranges).foreachRDD(set_zk_offset)
