@@ -5,8 +5,8 @@
 # partition 
 # key
 from __future__ import print_function
-import urllib2
 import json
+import requests
 
 
 class MQAPI(object):
@@ -14,20 +14,18 @@ class MQAPI(object):
         self.host = host
         self.topic = topic
         self.userKey = userKey
+        self.s = requests.session()
 
     def getOffset(self, partition):
         getUrl = '/'.join([self.host, 'offsets', self.topic, str(partition), self.userKey])
-        # print(getUrl)
-        urlop = urllib2.urlopen(getUrl)
-        offsets = json.loads(urlop.read())
-        urlop.close()
+        urlop = self.s.get(getUrl)
+        offsets = json.loads(urlop.text)
         return offsets
 
     def pullData(self, partition, cur):
         pullUrl = '/'.join([self.host, 'messages', self.topic, str(partition), str(cur)])
-        # print(pullUrl)
-        pull = urllib2.urlopen(pullUrl, timeout=10)
-        data = json.loads(pull.read())
+        pull = self.s.get(pullUrl, timeout=10)
+        data = json.loads(pull.text)
         return data
 
     def setOffset(self, partition, cur):
@@ -36,39 +34,22 @@ class MQAPI(object):
             headers = {"Content-type": "application/json"}
             info = {"offset": cur}
             data = json.dumps(info)
-            req = urllib2.Request(postUrl, data, headers)
-            postData = urllib2.urlopen(req)
-            postData.close()
-            return 1
+            req = self.s.post(postUrl, data, headers=headers)
+            if req.status_code == 201:
+                return 1
+            else:
+                return 0
         except Exception as e:
             print(e)
             return 0
 
 
 if __name__ == '__main__':
-    mq = MQAPI('http://api.mq.aodianyun.com/v1', 'nodeHls', 'XZP')
+    mq = MQAPI('http://api.mq.aodianyun.com/v1', 'nodeHls', 'XZPTest')
     offsets = mq.getOffset(0)
     print(offsets)
-    print(offsets['offset'])
-    # data = pullData('http://api.mq.aodianyun.com/v1', 'nodeHls', 0,  689467667)
-    # print(data)
-    # setOffset('http://api.mq.aodianyun.com/v1', 'nodeHls', 0, offsets['startOffset'], 'XZP')
-    # setOffset('http://api.mq.aodianyun.com/v1', 'nodeHls', 0, 672032383, 'XZP')
-    # data_dict = json.loads(data)
-    # pre_datas = data_dict['list']
-    #
-    # for data in pre_datas:
-    #     # print data
-    #     body = data.get('body', 'Error:no body keyword')
-    #     # body = data['body']
-    #     # print(body)
-    #     body_dict = json.loads(body, encoding='utf-8')
-    #     print(body_dict)
-    #
-    #     # print body_dict.get('remote_addr','Error:no remote_addr keyword')
-    #     # print body_dict.get('request_length', 'Error:no request.length keyword')
-    #     size = body_dict.get('body_bytes_sent', 'Error:no body_bytes_sent keyword')
-    #     ip = body_dict.get('remote_addr', 'Error:no remote_addr keyword')
-    #     print(size)
-    #     print(ip)
-    # spark streaming的输入源要求是一个持续不断的输入流，现在有个输入源是restapi格式那种的http请求，
+    data = mq.pullData(0, offsets['offset'])
+    import pprint
+    pprint.pprint(data)
+    print(mq.setOffset(0, data['nextOffset']))
+    print(mq.getOffset(0)['offset'])

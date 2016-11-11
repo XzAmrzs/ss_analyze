@@ -5,11 +5,8 @@
 
 # coding=utf-8
 
-import time
-
-from servers.nodeHls.nodeHls_kafka_multiprocess import NodeHlsProducer
-from servers.rtmpFluence.rtmp_kafka_multiprocess import RtmpProducer
-
+from servers.sender.nodeHls_kafka_sender import NodeHlsProducer
+from servers.sender.rtmp_kafka_sender import RtmpProducer
 
 def main():
     threads = {

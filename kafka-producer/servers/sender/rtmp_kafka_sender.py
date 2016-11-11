@@ -9,9 +9,9 @@ import time
 
 from kafka import KafkaProducer
 
-from ..mq.RtmpFluenceAPI import mqAPI as MQAPI
-from ..config import rtmpFluence_conf as conf
-from ..utils import tools
+from servers.mq.RtmpFluenceAPI import mqAPI as MQAPI
+from servers.config import rtmpFluence_conf as conf
+from servers.utils import tools
 
 PARTITION_NUM = conf.PARTITION_NUM
 LOG_PATH = conf.log_producer_Path
@@ -98,7 +98,6 @@ class RtmpProducer(threading.Thread):
 
             except Exception as e:
                 print(e)
-                pass
                 # offset = data.get('offset', 'Error:no offset keyword')
                 # tools.logout(LOG_PATH, kfk_topic, TIMESTAMP,
                 #              str(e) + ' Error data: partition: ' + str(partition) + ' offset: ' + str(

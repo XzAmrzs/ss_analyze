@@ -2,16 +2,15 @@
 from __future__ import print_function
 
 import json
-from multiprocessing import Process,JoinableQueue
-# import threading
+from multiprocessing import Process, JoinableQueue
+from threading import Thread
 import time
-
 
 from kafka import KafkaProducer
 
-from ..mq.NodeHlsAPI import mqAPI as MQAPI
-from ..config import nodeHls_conf as conf
-from ..utils import tools
+from servers.mq.NodeHlsAPI import mqAPI as MQAPI
+from servers.config import nodeHls_conf as conf
+from servers.utils import tools
 
 PARTITION_NUM = conf.PARTITION_NUM
 LOG_PATH = conf.log_producer_Path
@@ -22,7 +21,7 @@ kfk_topic = conf.KAFKA_TOPIC
 producer = KafkaProducer(bootstrap_servers=kfk_brokers)
 
 
-class NodeHlsProducer(Process):
+class NodeHlsProducer(Thread):
     def __init__(self, start_partition, stop_partition):
         super(NodeHlsProducer, self).__init__()
         self.daemon = True
@@ -98,7 +97,6 @@ class NodeHlsProducer(Process):
 
             except Exception as e:
                 print(e)
-                pass
                 # offset = data.get('offset', 'Error:no offset keyword')
                 # tools.logout(LOG_PATH, kfk_topic, TIMESTAMP,
                 #              str(e) + ' Error data: partition: ' + str(partition) + ' offset: ' + str(
@@ -106,19 +104,4 @@ class NodeHlsProducer(Process):
 
 
 if __name__ == '__main__':
-    def run2():
-        queue = JoinableQueue()
-        worker_list = list()
-        for i in range(5):
-            worker = NodeHlsProducer(0, 1, queue)
-            worker_list.append(worker)
-            worker.start()
-        queue.join()
-
-        for news_id in range(10):
-            queue.put('put:%s' % news_id)
-        for i in range(5):
-            queue.put(None)
-        for w in worker_list:
-            w.join()
-
+    pass

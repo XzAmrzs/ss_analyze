@@ -1,5 +1,6 @@
 .idea
 kafka-producer/.idea
 *.pyc
-*conf.py
+config/conf-example.py
+kafka-producer/servers/config/example_conf.py
 .svn

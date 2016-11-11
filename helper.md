@@ -23,34 +23,41 @@ bin/kafka-server-start.sh -daemon config/server.properties
 
 /usr/local/kafka_2.11-0.10.0.0/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.11-0.10.0.0/config/server.properties
 ```
+
 Step 2: Create a topic(replication-factor一定要大于1，否则kafka只有一份数据，leader一旦崩溃程序就没有输入源了，分区数目视输入源而定)
 ```
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 3 --partitions 1 --topic nodeHls
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 2 --partitions 3 --topic nodeHls
 ```
+
 Step 3: Describe a topic
 ```
 bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic nodeHlsTest
 ```
+
 step 3: list the topic
 ```
 bin/kafka-topics.sh --list --zookeeper localhost:2181
 ```
+
 step 4: send some message
 ```
 bin/kafka-console-producer.sh --broker-list localhost:9092 --topic nodeHlsTest
 ```
+
 step 5: start a consumer
 ```
 bin/kafka-console-consumer.sh --zookeeper localhost:2181 --topic nodeHlsTest --from-beginning
 ```
+
 step 6: delete a topic
 要事先在 `serve.properties` 配置 `delete.topic.enable=true`
 ```
-bin/kafka-topics.sh --delete --zookeeper localhost:2181 --topic nodeHlsTest
+bin/kafka-topics.sh --delete --zookeeper localhost:2181 --topic nodeHls
 # 如果仍然只是仅仅被标记了删除(zk中并没有被删除)，那么启动zkCli.sh,输入如下指令
 rmr /brokers/topics/nodeHlsTest
 ```
-查看kafka相应分区的最新下标
+
+step 7: 查看kafka相应分区的最新下标
 ```
 bin/kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic nodeHls --time -1
 ```
@@ -85,17 +92,19 @@ db.HlsStreamData.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,uniq
 
 db.rtmp_up.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_up_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_down.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_down_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_up_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_down_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_down_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_up_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.rtmp_down_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.rtmp_down_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_up_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.rtmp_down_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-rtmp_forward
-rtmp_forward_app
-rtmp_forward_server
+db.rtmp_forward_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 
 ```
 
@@ -124,6 +133,28 @@ nohup sh /home/xzp/ss_analyze/run.sh &
 
 kill命令
 ps -ef|grep nodeHls_multiprocess |grep -v grep |awk '{print "kill -9",$2}' |sh
+ps -ef|grep rtmp_multiprocess |grep -v grep |awk '{print "kill -9",$2}' |sh
+ps -ef|grep redis2mongo |grep -v grep |awk '{print "kill -9",$2}' |sh
 jps|grep -i kafka|grep -v grep |awk '{print "kill -9",$1}' |sh
 jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
+```
+
+## 更新程序:
+1. 暂停MQ进程(在所有机器上执行,)
+```
+ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -19",$2}' |sh
+ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -19",$2}' |sh
+```
+2. 打开kafka-master:4040页面，当streaming页面显示接入的数据为0的时候，将spark程序关闭
+```
+jps|grep -i sparksubmit|grep -v grep |awk '{print "kill -9",$1}' |sh
+```
+3. 更新并启动新程序
+```
+nohup sh ./run.sh &
+```
+4. 恢复MQ进程
+```
+jobs 
+bg jobs_id
 ```
