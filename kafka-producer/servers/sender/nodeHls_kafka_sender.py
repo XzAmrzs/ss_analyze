@@ -89,6 +89,7 @@ class NodeHlsProducer(Thread):
         """
         for data in data_list:
             body = data.get('body', 'Error:no body keyword').replace('\\', '')
+            offset = data.get('offset','Error: no offset keyword')
 
             try:
                 body_dict = json.loads(body)

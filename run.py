@@ -236,7 +236,7 @@ def rtmpParser(body_dict):
     body_dict['Flux'] = body_dict['SendByteSum'] if body_dict.get('Cmd') == 'play' else body_dict['RecvByteSum']
     body_dict["Count"] = 1
     body_dict["ValidCounts"] = 1 if body_dict.get("PublishTime") >= 30 * 30000 else 0
-    body_dict["PlayFlencyTime"] = body_dict['PlayTime'] * body_dict['PlayFluency']
+    body_dict["PlayFluencyTime"] = body_dict['PlayTime'] * body_dict['PlayFluency']
     body_dict["PlayFluencyZeroCounts"] = 1 if body_dict.get("PlayFluency") == 0 else 0
 
     return rtmp_app_stream_user_server(body_dict)
@@ -245,7 +245,7 @@ def rtmpParser(body_dict):
 def rtmp_app_stream_user_server(data):
     return (data['Cmd'], data['TimestampHour'], data['App'], data['Stream'], data.get('User', -1), data['SvrIp']), \
            (data['ValidCounts'], data["Count"], data['PlayFluency'], data['PlayFluencyIn60s'],
-            data['PublishTime'], data['PlayFlencyTime'], data['EmptyNumbers'], data['EmptyTime'], data['MaxEmptyTime'],
+            data['PublishTime'], data['PlayFluencyTime'], data['EmptyNumbers'], data['EmptyTime'], data['MaxEmptyTime'],
             data['FirstBufferTime'], data['EmptyNumbersIn60s'], data['EmptyTimeIn60s'], data['PlayFluencyZeroCounts'],
             data['Max60sFluency'], data['Min60sFluency'], data['Flux']
             )
@@ -297,14 +297,14 @@ def dao_store_and_update(db, flag, iter):
         if flag == 'rtmp':
             cmd, timestamp_hour, app, stream, user, svr_ip = record[0]
 
-            valid_counts, total_counts, play_fluency, play_fluency_in60s, publish_time, play_flency_time, \
+            valid_counts, total_counts, play_fluency, play_fluency_in60s, publish_time, play_fluency_time, \
             empty_numbers, empty_time, max_empty_time, first_buffer_time, empty_numbers_in60s, empty_time_in60s, \
             play_fluency_zero_counts, max60s_fluency, min60s_fluency, flux = record[1]
 
             data_dict = dict(cmd=cmd, timestamp_hour=timestamp_hour, app=app, stream=stream, user=user, svr_ip=svr_ip,
                              valid_counts=valid_counts, total_counts=total_counts, play_fluency=play_fluency,
                              play_fluency_in60s=play_fluency_in60s, publish_time=publish_time,
-                             play_flency_time=play_flency_time, empty_numbers=empty_numbers, empty_time=empty_time,
+                             play_fluency_time=play_fluency_time, empty_numbers=empty_numbers, empty_time=empty_time,
                              max_empty_time=max_empty_time, first_buffer_time=first_buffer_time,
                              empty_numbers_in60s=empty_numbers_in60s, empty_time_in60s=empty_time_in60s,
                              play_fluency_zero_counts=play_fluency_zero_counts, max60s_fluency=max60s_fluency,

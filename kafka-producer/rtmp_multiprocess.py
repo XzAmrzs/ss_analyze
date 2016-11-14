@@ -2,6 +2,9 @@
 from __future__ import print_function
 
 import time, json
+from signal import SIGINT
+from signal import signal
+
 from kafka import KafkaProducer
 from servers.mq.RtmpFluenceAPI import mqAPI as MQAPI
 from servers.config import rtmpFluence_conf as conf
@@ -12,7 +15,7 @@ LOG_PATH = conf.log_producer_Path
 TIMESTAMP = tools.timeFormat('%Y%m%d', int(time.time()))
 
 
-def deal_with(data_list, producer, kfk_topic):
+def deal_with(data_list, producer, kfk_topic,partition):
     """
     :param data_list: list
     :param producer: SimpleProducer
@@ -21,6 +24,13 @@ def deal_with(data_list, producer, kfk_topic):
     """
     for data in data_list:
         body = data.get('body', 'Error:no body keyword').replace('\\', '')
+        offset = data.get('offset', 'Error:no offset keyword')
+
+        def signal_action(sig, stack_frame):
+            MQAPI.setOffset(partition, offset)
+            exit(1)
+
+        signal(SIGINT, signal_action)
 
         try:
             body_dict = json.loads(body)
@@ -67,7 +77,7 @@ def response(producer, kfk_topic, partition_range):
 
                         # 处理数据
 
-                        deal_with(data_list, producer, kfk_topic)
+                        deal_with(data_list, producer, kfk_topic,partition)
 
                         # 更新MQ远程和当前游标的状态
                         offset = nextOffset

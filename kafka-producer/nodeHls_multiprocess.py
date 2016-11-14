@@ -6,14 +6,16 @@ from kafka import KafkaProducer
 from servers.mq.NodeHlsAPI import mqAPI as MQAPI
 from servers.config import nodeHls_conf as conf
 from servers.utils import tools
+from signal import signal, SIGINT
 
 PARTITION_NUM = conf.PARTITION_NUM
 LOG_PATH = conf.log_producer_Path
 TIMESTAMP = tools.timeFormat('%Y%m%d', int(time.time()))
 
 
-def deal_with(data_list, producer, kfk_topic):
+def deal_with(data_list, producer, kfk_topic, partition):
     """
+    :param partition:
     :param data_list: list
     :param producer: SimpleProducer
     :param kfk_topic: str
@@ -21,6 +23,13 @@ def deal_with(data_list, producer, kfk_topic):
     """
     for data in data_list:
         body = data.get('body', 'Error:no body keyword').replace('\\', '')
+        offset = data.get('offset', 'Error:no offset keyword')
+
+        def signal_action(sig, stack_frame):
+            MQAPI.setOffset(partition, offset)
+            exit(1)
+
+        signal(SIGINT, signal_action)
 
         try:
             body_dict = json.loads(body)
@@ -67,7 +76,7 @@ def response(producer, kfk_topic, partition_range):
 
                         # 处理数据
 
-                        deal_with(data_list, producer, kfk_topic)
+                        deal_with(data_list, producer, kfk_topic,partition)
 
                         # 更新MQ远程和当前游标的状态
                         offset = nextOffset
@@ -99,13 +108,13 @@ def run_proc(partition_range):
 if __name__ == '__main__':
 
     from multiprocessing import Process
-    
+
     threads = {
         Process(target=run_proc, args=((0, 2),)),
-        #Process(target=run_proc, args=((2, 4),)),
-        #Process(target=run_proc, args=((4, 6),)),
-        #Process(target=run_proc, args=((6, 8),)),
-        #Process(target=run_proc, args=((8, 10),))
+        # Process(target=run_proc, args=((2, 4),)),
+        # Process(target=run_proc, args=((4, 6),)),
+        # Process(target=run_proc, args=((6, 8),)),
+        # Process(target=run_proc, args=((8, 10),))
     }
 
     for t in threads:

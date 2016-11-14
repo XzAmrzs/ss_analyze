@@ -27,11 +27,12 @@ bin/kafka-server-start.sh -daemon config/server.properties
 Step 2: Create a topic(replication-factor一定要大于1，否则kafka只有一份数据，leader一旦崩溃程序就没有输入源了，分区数目视输入源而定)
 ```
 bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 2 --partitions 3 --topic nodeHls
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic RtmpFluence
 ```
 
 Step 3: Describe a topic
 ```
-bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic nodeHlsTest
+bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic nodeHls
 ```
 
 step 3: list the topic
@@ -54,7 +55,7 @@ step 6: delete a topic
 ```
 bin/kafka-topics.sh --delete --zookeeper localhost:2181 --topic nodeHls
 # 如果仍然只是仅仅被标记了删除(zk中并没有被删除)，那么启动zkCli.sh,输入如下指令
-rmr /brokers/topics/nodeHlsTest
+rmr /brokers/topics/nodeHls
 ```
 
 step 7: 查看kafka相应分区的最新下标
@@ -75,15 +76,15 @@ mongod --fork --logpath /data/logs/mongodb/mongo.log --logappend
 mongo kafka-master:27017
 
 db.hls_up.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
-db.hls_down.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
 db.hls_up_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.hls_down_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.hls_up_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_down.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
 db.hls_down_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.hls_down_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.hls_down_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.hls_down_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.hls_down_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.hls_down_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.hls_down_app_stream.ensureIndex({app:1,stream:1,user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.hls_down_app_stream_hour.ensureIndex({app:1,stream:1,user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.hls_down_httpCode.ensureIndex({httpCode:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.HlsDayData.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
 db.HlsUserData.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
@@ -91,28 +92,57 @@ db.HlsStreamData.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,uniq
 
 
 db.rtmp_up.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_up_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_forward_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_up_app.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_up_server.ensureIndex({svr_ip:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_down.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_down_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_forward_s.ensureIndex({server_addr:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_up_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_down_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_forward_a.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
-db.rtmp_up_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_app.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_server.ensureIndex({svr_ip:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_user.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_down_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.rtmp_down_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.rtmp_forward_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.rtmp_up_app_stream.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.rtmp_down_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.rtmp_forward_app_stream_hour.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward_app.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
+db.rtmp_forward_server.ensureIndex({svr_ip:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 
+db.hls_up.drop()
+db.hls_down.drop()
+db.hls_up_s.drop()
+db.hls_down_s.drop()
+db.hls_up_a.drop()
+db.hls_down_a.drop()
+db.hls_down_user.drop()
+db.hls_down_user_hour.drop()
+db.hls_down_app_stream.drop()
+db.hls_down_app_stream_hour.drop()
+db.hls_down_httpCode.drop()
+db.HlsDayData.drop()
+db.HlsUserData.drop()
+db.HlsStreamData.drop()
+
+db.rtmp_up.drop()
+db.rtmp_up_app.drop()
+db.rtmp_up_server.drop()
+db.rtmp_down.drop()
+db.rtmp_down_app.drop()
+db.rtmp_down_server.drop()
+db.rtmp_down_user.drop()
+db.rtmp_down_app_stream.drop()
+db.rtmp_down_user_hour.drop()
+db.rtmp_down_app_stream_hour.drop()
+db.rtmp_forward.drop()
+db.rtmp_forward_app.drop()
+db.rtmp_forward_server.drop()
 ```
 
 ## 启动与重启服务:
 ```
 /usr/local/zookeeper-3.4.8/bin/zkServer.sh start
 # wait 5s
-/usr/local/kafka_2.11-0.10.0.0/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.11-0.10.0.0/config/server.properties
+
+/usr/local/kafka_2.10-0.8.2.2/bin/kafka-server-stop.sh
+
+/usr/local/kafka_2.10-0.8.2.2/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.10-0.8.2.2/config/server.properties
 # wait 5s
 
 # master主机宕机情况:
@@ -142,8 +172,8 @@ jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
 ## 更新程序:
 1. 暂停MQ进程(在所有机器上执行,)
 ```
-ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -19",$2}' |sh
-ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -19",$2}' |sh
+ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -2",$2}' |sh
+ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -2",$2}' |sh
 ```
 2. 打开kafka-master:4040页面，当streaming页面显示接入的数据为0的时候，将spark程序关闭
 ```
