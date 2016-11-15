@@ -172,8 +172,8 @@ jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
 ## 更新程序:
 1. 暂停MQ进程(在所有机器上执行,)
 ```
-ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -2",$2}' |sh
-ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -2",$2}' |sh
+ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -19",$2}' |sh
+ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -19",$2}' |sh
 ```
 2. 打开kafka-master:4040页面，当streaming页面显示接入的数据为0的时候，将spark程序关闭
 ```

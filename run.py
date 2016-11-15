@@ -235,7 +235,7 @@ def rtmpParser(body_dict):
     # play是下行
     body_dict['Flux'] = body_dict['SendByteSum'] if body_dict.get('Cmd') == 'play' else body_dict['RecvByteSum']
     body_dict["Count"] = 1
-    body_dict["ValidCounts"] = 1 if body_dict.get("PublishTime") >= 30 * 30000 else 0
+    body_dict["ValidCounts"] = 1 if body_dict.get("PublishTime") >= 30000 else 0
     body_dict["PlayFluencyTime"] = body_dict['PlayTime'] * body_dict['PlayFluency']
     body_dict["PlayFluencyZeroCounts"] = 1 if body_dict.get("PlayFluency") == 0 else 0
 
