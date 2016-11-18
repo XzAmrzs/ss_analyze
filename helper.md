@@ -86,9 +86,6 @@ db.hls_down_user_hour.ensureIndex({user:1,timestamp:-1},{background:true,unique:
 db.hls_down_app_stream.ensureIndex({app:1,stream:1,user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.hls_down_app_stream_hour.ensureIndex({app:1,stream:1,user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 db.hls_down_httpCode.ensureIndex({httpCode:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.HlsDayData.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
-db.HlsUserData.ensureIndex({user:1,timestamp:-1},{background:true,unique:true,dropDups:true})
-db.HlsStreamData.ensureIndex({app:1,stream:1,timestamp:-1},{background:true,unique:true,dropDups:true})
 
 
 db.rtmp_up.ensureIndex({timestamp: -1},{background:true,unique:true,dropDups:true})
@@ -105,20 +102,21 @@ db.rtmp_forward.ensureIndex({timestamp: -1},{background:true,unique:true,dropDup
 db.rtmp_forward_app.ensureIndex({app:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 db.rtmp_forward_server.ensureIndex({svr_ip:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 
-db.hls_up.drop()
-db.hls_down.drop()
-db.hls_up_s.drop()
-db.hls_down_s.drop()
-db.hls_up_a.drop()
-db.hls_down_a.drop()
-db.hls_down_user.drop()
-db.hls_down_user_hour.drop()
-db.hls_down_app_stream.drop()
-db.hls_down_app_stream_hour.drop()
-db.hls_down_httpCode.drop()
-db.HlsDayData.drop()
-db.HlsUserData.drop()
-db.HlsStreamData.drop()
+
+db.hls_up.remove({'timestamp':20161113})
+db.hls_down.remove({'timestamp':20161113})
+db.hls_up_s.remove({'timestamp':20161113})
+db.hls_down_s.remove({'timestamp':20161113})
+db.hls_up_a.remove({'timestamp':20161113})
+db.hls_down_a.remove({'timestamp':20161113})
+db.hls_down_user.remove({'timestamp':20161113})
+db.hls_down_user_hour.remove({'timestamp':{"$gte":2016111300,"$lte":2016111324}})
+db.hls_down_app_stream.remove({'timestamp':20161113})
+db.hls_down_app_stream_hour.remove({'timestamp':{"$gte":2016111300,"$lte":2016111324}})
+db.hls_down_httpCode.remove({'timestamp':20161113})
+db.HlsDayData.remove({'updateTime':20161113})
+db.HlsUserData.remove({'updateTime':20161113})
+db.HlsStreamData.remove({'updateTime':20161113})
 
 db.rtmp_up.drop()
 db.rtmp_up_app.drop()
@@ -164,7 +162,7 @@ nohup sh /home/xzp/ss_analyze/run.sh &
 kill命令
 ps -ef|grep nodeHls_multiprocess |grep -v grep |awk '{print "kill -9",$2}' |sh
 ps -ef|grep rtmp_multiprocess |grep -v grep |awk '{print "kill -9",$2}' |sh
-ps -ef|grep redis2mongo |grep -v grep |awk '{print "kill -9",$2}' |sh
+ps -ef|grep hls_redis2mongo |grep -v grep |awk '{print "kill -9",$2}' |sh
 jps|grep -i kafka|grep -v grep |awk '{print "kill -9",$1}' |sh
 jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
 ```
@@ -172,8 +170,8 @@ jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
 ## 更新程序:
 1. 暂停MQ进程(在所有机器上执行,)
 ```
-ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -19",$2}' |sh
-ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -19",$2}' |sh
+ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -2",$2}' |sh
+ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -2",$2}' |sh
 ```
 2. 打开kafka-master:4040页面，当streaming页面显示接入的数据为0的时候，将spark程序关闭
 ```

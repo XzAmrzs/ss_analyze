@@ -155,9 +155,9 @@ def hlsParser(body_dict):
             fluency_counts = 1 if request_time < 1 and valid_http_stat else 0
         else:
             hls_type = False
-            app, stream, time_length = get_app_stream(app_stream_list, hls_type)
+            app, stream, slice_time = get_app_stream(app_stream_list, hls_type)
             # ts判断是否流畅 切片时间大于3倍的请求时间说明是流畅的
-            fluency_counts = 1 if time_length > 3 * request_time and valid_http_stat else 0
+            fluency_counts = 1 if slice_time > 3 * request_time and valid_http_stat else 0
     except Exception as e:
         print(e)
         app = 'error'
@@ -331,6 +331,7 @@ if __name__ == '__main__':
     # 启动单例的redis线程池
     # ################### nodeHls数据处理 ####################################################
     nodeHls_body_dict = streams.filter(nodeHls_filter).map(json2dict).filter(nodeHls_valid_filter)
+
     hls_result = nodeHls_body_dict.map(hlsParser)
 
     # hls_app_stream_user_httpcode

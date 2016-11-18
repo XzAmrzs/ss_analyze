@@ -13,4 +13,5 @@ log_producer_Path = conf.log_producer_Path
 # Kafka
 KAFKA_BROKERS = conf.KAFKA_BROKERS
 KAFKA_TOPIC = 'nodeHls'
+dataRootPath = conf.dataRootPath
 

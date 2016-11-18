@@ -18,12 +18,12 @@ def hlsParser(body_dict):
     request_url = body_dict.get('request_url', 'error_request_url')
     server_addr = body_dict.get('server_addr', 'error_server_addr')
     remote_addr = body_dict.get('remote_addr', 'error_remote_addr')
-    # =1说明是上行数据，否则是下行数据
+    # =1说明是上行数据，否则是下行数据,统一为0
     svr_type = body_dict.get('svr_type', 0)
     # 如果http_stat取不到就取0
     http_stat = body_dict.get('http_stat', 0)
     valid_http_stat = http_stat < 400 and http_stat != 202
-    request_time = float(body_dict.get('request_time', '0.000'))
+    request_time = int(float(body_dict.get('request_time', 0)) * 1000)
 
     try:
         # 这里不能用简单的'/'来分割,会碰到请求的url有多个'/'的情况
@@ -35,24 +35,30 @@ def hlsParser(body_dict):
             hls_type = True
             app, stream = get_app_stream(app_stream_list, hls_type)
             # m3u8判断是否流畅
-            is_fluency = 1 if request_time < 1 and valid_http_stat else 0
+            fluency_counts = 1 if request_time < 1 and valid_http_stat else 0
         else:
             hls_type = False
-            app, stream, time_length=get_app_stream(app_stream_list, hls_type)
+            app, stream, slice_time = get_app_stream(app_stream_list, hls_type)
             # ts判断是否流畅 切片时间大于3倍的请求时间说明是流畅的
-            is_fluency = 1 if time_length > 3 * request_time and valid_http_stat else 0
+            fluency_counts = 1 if slice_time > 3 * request_time and valid_http_stat else 0
     except Exception as e:
         print(e)
         app = 'error'
         stream = 'error'
-        is_fluency = 'error'
         hls_type = 'error'
+        fluency_counts = 0
 
     # 因为有的是上行数据，没有user这个字段，所以统一归为'no user keyword'字段
-    user = body_dict.get('user', "no_user_keyword")
+    try:
+        user = int(body_dict.get('user', "no_user_keyword"))
+    except Exception as e:
+        # print(e)
+        user = body_dict.get('user', "no_user_keyword")
+
     flux = body_dict.get('body_bytes_sent', 0) if valid_http_stat else 0
     timestamp = tools.timeFormat('%Y%m%d', float(body_dict.get('unix_time', 0)))
     timestamp_hour = tools.timeFormat('%Y%m%d%H', float(body_dict.get('unix_time', 0)))
+    valid_counts = 1 if valid_http_stat else 0
 
     # 如果状态位置取不出来，说明该数据无效，仍是失败数据,直接去取400
     # is_not_less_than
@@ -63,11 +69,11 @@ def hlsParser(body_dict):
 
     data = {'svr_type': svr_type, 'hls_type': hls_type, 'timestamp': timestamp, 'timestamp_hour': timestamp_hour,
             'app': app, 'stream': stream, 'user': user, 'server_addr': server_addr, 'remote_addr': remote_addr,
-            'http_stat': http_stat, 'is_fluency': is_fluency, 'is_nlt_400': is_nlt_400, 'is_mt_1': is_mt_1,
-            'is_mt_3': is_mt_3, 'request_time': request_time, 'count': 1, 'flux': flux}
-    # return hls_app_stream_pair(data), hls_s_pair(data), hls_user_flux_pair(data)
-    return hls2hdfs(data)
-    # return data
+            'http_stat': http_stat, 'is_nlt_400': is_nlt_400, 'is_mt_1': is_mt_1,
+            'is_mt_3': is_mt_3, 'request_time': request_time, 'count': 1, 'flux': flux, 'valid_counts': valid_counts,
+            'fluency_counts': fluency_counts}
+
+    return hls_app_stream_user_server_httpcode(data)
 
 
 def get_app_stream(app_stream_list, hls_type):
@@ -88,29 +94,11 @@ def get_app_stream(app_stream_list, hls_type):
         return app, stream, time_length
 
 
-def hls2hdfs(data):
-    return (data['svr_type'], data['app'], data['stream'], data['timestamp'], data['user'], data['server_addr'],
-            data['remote_addr'], data["is_fluency"]), (data['request_time'], data['count'])
-
-
-def hls_app_stream_pair(data):
-    return (data['svr_type'], data['hls_type'], data['timestamp'], data['app'], data['stream']), data['flux']
-
-
-def hls_app_stream_hour_pair(data):
-    return (data['svr_type'], data['hls_type'], data['timestamp'], data['app'], data['stream']), data['flux']
-
-
-def hls_user_flux_pair(data):
-    return (data['svr_type'], data['timestamp'], data['user']), data['flux']
-
-
-def hls_user_flux_hour_pair(data):
-    return (data['svr_type'], data['timestamp_hour'], data['user']), data['flux']
-
-def hls_http_stat_pair(data):
-    return (data['svr_type'], data['timestamp'], data['http_stat']), data['count']
-
+def hls_app_stream_user_server_httpcode(data):
+    return (data['svr_type'], data['hls_type'], data['timestamp_hour'], data['app'], data['stream'], data['user'],
+            data['server_addr'], data['http_stat']), \
+           (data['is_nlt_400'], data['is_mt_1'], data['is_mt_3'], data['flux'], data['request_time'],
+            data['fluency_counts'], data['valid_counts'], data['count'])
 
 if __name__ == '__main__':
     # body_dict = {"time_local": "[31/Oct/2016:15:12:23 +0800]", "unix_time": "1477897943", "remote_addr": "223.104.4.59",

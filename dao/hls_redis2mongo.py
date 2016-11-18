@@ -121,9 +121,9 @@ def run_hls(a, db, client):
         update_dit = {
             '$inc': dict(sizeSum=flux, count=valid_counts, reqTime=request_time,
                          fluency=fluency_counts)}
-        tables_list = ('HlsDayData', 'HlsUserData', 'HlsStreamData',)
-        for index, col_name in enumerate(tables_list):
 
+        tables_list = ('HlsDayData', 'HlsUserData', 'HlsStreamData')
+        for index, col_name in enumerate(tables_list):
             col = db.get_collection(col_name)
             if index == 1:
                 data['user'] = user
@@ -131,7 +131,7 @@ def run_hls(a, db, client):
                 data['app'] = app
                 data['stream'] = stream
             try:
-                col.update_one(data, update_dit, True)
+               col.update_one(data, update_dit, True)
             except Exception as e:
                 col.update_one(data, update_dit)
 
