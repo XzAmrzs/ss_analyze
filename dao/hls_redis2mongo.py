@@ -1,11 +1,14 @@
 # coding=utf-8
+from json import tool
 from signal import signal, SIGINT
 
 import redis
 import json
 
+import time
 from pymongo import MongoClient
 from config import conf
+from utils import tools
 
 database_name_hls = conf.DATABASE_NAME_HLS
 database_driver_host = conf.DATABASE_DRIVER_HOST
@@ -15,10 +18,11 @@ redisIp = conf.REDIS_HOST
 redisPort = conf.REDIS_PORT
 redisDB = conf.REDIS_DB
 redisPwd = conf.REDIS_PWD
-
+timeYmd = tools.timeFormat('%Y%m%d', int(time.time()))
 
 def run_proc():
-    r = redis.Redis(redisIp, redisPort, redisDB, redisPwd)
+    # r = redis.Redis(redisIp, redisPort, redisDB, redisPwd)
+    r = redis.Redis(redisIp)
     client = MongoClient(database_driver_host)
     db_hls = client.get_database(database_name_hls)
     while True:
@@ -76,7 +80,7 @@ def run_hls(a, db, client):
         try:
             col.update_one(data, update_dit, True)
         except Exception as e:
-            col.update_one(data, update_dit)
+            tools.logout('/data/redis2mongo', 'hls', timeYmd, 'Error: ' + str(e), 1)
     # 如果是下行
     if svr_type == 0:
         update_dit = {
@@ -101,7 +105,7 @@ def run_hls(a, db, client):
             try:
                 col.update_one(data, update_dit, True)
             except Exception as e:
-                col.update_one(data, update_dit)
+                tools.logout('/data/redis2mongo', 'hls', timeYmd, 'Error: ' + str(e), 1)
 
         data = {'timestamp': int(timestamp_hour)}
         tables_list = ('hls_down_user_hour', 'hls_down_app_stream_hour')
@@ -115,7 +119,7 @@ def run_hls(a, db, client):
             try:
                 col.update_one(data, update_dit, True)
             except Exception as e:
-                col.update_one(data, update_dit)
+                tools.logout('/data/redis2mongo', 'hls', timeYmd, 'Error: ' + str(e), 1)
 
         data = {'updateTime': int(timestamp_hour[:8])}
         update_dit = {
@@ -133,7 +137,7 @@ def run_hls(a, db, client):
             try:
                col.update_one(data, update_dit, True)
             except Exception as e:
-                col.update_one(data, update_dit)
+                tools.logout('/data/redis2mongo', 'hls', timeYmd, 'Error: ' + str(e), 1)
 
     def signal_action(sig, stack_frame):
         client.close()

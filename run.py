@@ -8,8 +8,6 @@ import time
 import re
 
 import redis
-from kazoo.client import KazooClient
-from kazoo.exceptions import KazooException
 
 from pyspark import SparkContext
 
@@ -46,9 +44,6 @@ app_name = conf.APP_NAME
 ####################################################
 
 
-offsetRanges = []
-
-
 def json2dict(s):
     """
     :param s: str
@@ -60,58 +55,6 @@ def json2dict(s):
     except Exception as e:
         tools.logout(logPath, app_name, timeYmd, 'Error Load Json: ' + s[1] + ' ' + str(e), 3)
         return {}
-
-
-def store_offset_ranges(rdd):
-    """保存当前rdd的游标范围信息"""
-    global offsetRanges
-    offsetRanges = rdd.offsetRanges()
-    return rdd
-
-
-def set_zk_offset(rdd):
-    """设置zookeeper的游标"""
-    zk = KazooClient(hosts=zk_servers)
-    zk.start()
-
-    for offsetRange in offsetRanges:
-        nodePath = '/'.join(
-            ['/consumers', 'spark-group', 'offsets', str(offsetRange.topic), str(offsetRange.partition)])
-        # 如果存在这个分区，更新分区，否则，新建这个分区并且把游标移动到这次读完的位置(或者这次开始读的位置,再判断)
-        if zk.exists(nodePath):
-            zk.set(nodePath, bytes(offsetRange.untilOffset))
-        else:
-            zk.create(nodePath, bytes(offsetRange.untilOffset), makepath=True)
-    zk.stop()
-
-
-def get_last_offsets(zkServers, groupID, topics):
-    """
-    返回zk中此消费者消费当前topic中的每个partition的offset
-    :param zkServers:
-    :param groupID:
-    :param topic:
-    :return: [(partition1,offset1), ..., (partitionN,offsetN)]
-    """
-    zk = KazooClient(zkServers, read_only=True)
-    zk.start()
-
-    last_offsets = {}
-
-    try:
-        for topic in topics:
-            nodePath = '/'.join(['/consumers', groupID, 'offsets', topic])
-            if zk.exists(nodePath):
-                for partition in zk.get_children(nodePath):
-                    offset, stat = zk.get('/'.join([nodePath, partition]))
-                    topicAndPartition = TopicAndPartition(topic, int(partition))
-                    last_offsets[topicAndPartition] = long(offset)
-    except KazooException as e:
-        print(e)
-    finally:
-        zk.stop()
-    return last_offsets
-
 
 # ###############################################nodeHls业务分析########################################################
 
@@ -152,7 +95,7 @@ def hlsParser(body_dict):
             hls_type = True
             app, stream = get_app_stream(app_stream_list, hls_type)
             # m3u8判断是否流畅
-            fluency_counts = 1 if request_time < 1 and valid_http_stat else 0
+            fluency_counts = 1 if request_time < 1000 and valid_http_stat else 0
         else:
             hls_type = False
             app, stream, slice_time = get_app_stream(app_stream_list, hls_type)
@@ -181,8 +124,8 @@ def hlsParser(body_dict):
     # is_not_less_than
     is_nlt_400 = 1 if http_stat >= 400 else 0
     # is_more_than
-    is_mt_1 = 1 if request_time > 1 else 0
-    is_mt_3 = 1 if request_time > 3 else 0
+    is_mt_1 = 1 if request_time > 1000 else 0
+    is_mt_3 = 1 if request_time > 3000 else 0
 
     data = {'svr_type': svr_type, 'hls_type': hls_type, 'timestamp': timestamp, 'timestamp_hour': timestamp_hour,
             'app': app, 'stream': stream, 'user': user, 'server_addr': server_addr, 'remote_addr': remote_addr,
@@ -236,7 +179,7 @@ def rtmpParser(body_dict):
     body_dict['Flux'] = body_dict['SendByteSum'] if body_dict.get('Cmd') == 'play' else body_dict['RecvByteSum']
     body_dict["Count"] = 1
     body_dict["ValidCounts"] = 1 if body_dict.get("PublishTime") >= 30000 else 0
-    body_dict["PlayFluencyTime"] = body_dict['PlayTime'] * body_dict['PlayFluency']
+    body_dict["PlayFlencyTime"] = body_dict['PlayTime'] * body_dict['PlayFluency']
     body_dict["PlayFluencyZeroCounts"] = 1 if body_dict.get("PlayFluency") == 0 else 0
 
     return rtmp_app_stream_user_server(body_dict)
@@ -245,7 +188,7 @@ def rtmpParser(body_dict):
 def rtmp_app_stream_user_server(data):
     return (data['Cmd'], data['TimestampHour'], data['App'], data['Stream'], data.get('User', -1), data['SvrIp']), \
            (data['ValidCounts'], data["Count"], data['PlayFluency'], data['PlayFluencyIn60s'],
-            data['PublishTime'], data['PlayFluencyTime'], data['EmptyNumbers'], data['EmptyTime'], data['MaxEmptyTime'],
+            data['PublishTime'], data['PlayFlencyTime'], data['EmptyNumbers'], data['EmptyTime'], data['MaxEmptyTime'],
             data['FirstBufferTime'], data['EmptyNumbersIn60s'], data['EmptyTimeIn60s'], data['PlayFluencyZeroCounts'],
             data['Max60sFluency'], data['Min60sFluency'], data['Flux']
             )
@@ -318,20 +261,14 @@ if __name__ == '__main__':
     sc.addPyFile('./config/conf.py')
     sc.addPyFile('./utils/tools.py')
     # 设置程序处理间隔
-    ssc = StreamingContext(sc, 30)
+    ssc = StreamingContext(sc, 300)
 
     # 启动配置
-    fromOffsets = get_last_offsets(zk_servers, "spark-group", kafka_topics)
     kafkaParams = {"metadata.broker.list": kafka_brokers}
     streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams)
-    # streams = KafkaUtils.createDirectStream(ssc, kafka_topics, kafkaParams, fromOffsets=fromOffsets)
 
-    # 将每个 partition 的 offset记录更新到zookeeper
-    streams.transform(store_offset_ranges).foreachRDD(set_zk_offset)
-    # 启动单例的redis线程池
     # ################### nodeHls数据处理 ####################################################
     nodeHls_body_dict = streams.filter(nodeHls_filter).map(json2dict).filter(nodeHls_valid_filter)
-
     hls_result = nodeHls_body_dict.map(hlsParser)
 
     # hls_app_stream_user_httpcode

@@ -18,6 +18,13 @@ def json2dict(s, log_path, app_name, timeYmd):
         return {}
 
 
+def reduce_function(x, y):
+    pair = []
+    for xx, yy in zip(x, y):
+        pair.append(xx + yy)
+    return tuple(pair)
+
+
 def logout(logRootPath, logName, timeYMD, message, level):
     # 创建一个logger
     logger = logging.getLogger(logName)

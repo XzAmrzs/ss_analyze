@@ -2,24 +2,21 @@
 from __future__ import print_function
 
 import json
-from multiprocessing import Process, JoinableQueue
-from threading import Thread
-import time
 
 from kafka import KafkaProducer
 
-from servers.config import nodeHls_conf as conf
-from servers.utils import tools
+from servers.config import rtmpFluence_conf as conf
 
 LOG_PATH = conf.log_producer_Path
 
 kfk_brokers = conf.KAFKA_BROKERS
 kfk_topic = conf.KAFKA_TOPIC
 producer = KafkaProducer(bootstrap_servers=kfk_brokers)
+root_path = conf.dataRootPath
 
 
 def run():
-    with open('/zookeeper_data/topic_data/nodeHls/20161122', 'r') as f:
+    with open(root_path + kfk_topic+'/20161121', 'r') as f:
         deal_with(f)
 
 
@@ -35,11 +32,6 @@ def deal_with(data_list):
                           value=bytes(json.dumps(data, ensure_ascii=False)))
         except Exception as e:
             print(e)
-            # offset = data.get('offset', 'Error:no offset keyword')
-            # tools.logout(LOG_PATH, kfk_topic, TIMESTAMP,
-            #              str(e) + ' Error data: partition: ' + str(partition) + ' offset: ' + str(
-            #                  offset) + '\n' + str(data), 3)
-
 
 if __name__ == '__main__':
     run()

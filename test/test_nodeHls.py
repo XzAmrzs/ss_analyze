@@ -39,6 +39,7 @@ def hlsParser(body_dict):
         else:
             hls_type = False
             app, stream, slice_time = get_app_stream(app_stream_list, hls_type)
+            print(slice_time)
             # ts判断是否流畅 切片时间大于3倍的请求时间说明是流畅的
             fluency_counts = 1 if slice_time > 3 * request_time and valid_http_stat else 0
     except Exception as e:
@@ -109,15 +110,15 @@ if __name__ == '__main__':
     #              "server_addr": "120.210.195.68", "upstream_addr": "127.0.0.1:8080", "upstream_response_time": "0.001",
     #              "request_time": "0.001"}
 
-    # body_dict = {"time_local": "[31/Oct/2016:15:11:59 +0800]", "unix_time": "1477897919",
-    #              "remote_addr": "183.240.128.149", "clientip": "-", "host": "183.232.234.8",
-    #              "request_url": "GET /xsjrw/xsjrw-stream-1477897111-73315890-110-3000.ts HTTP/1.1", "http_stat": 200,
-    #              "request_length": 480, "body_bytes_sent": 78584, "http_referer": "http://www.51888zb.com/m/",
-    #              "http_user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_2 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Mobile/13F69 QQ/6.5.8.437 V1_IPH_SQ_6.5.8_1_APP_A Pixel/1080 Core/UIWebView NetType/WIFI Mem/141",
-    #              "server_addr": "183.232.234.8", "upstream_addr": "-", "upstream_response_time": "-",
-    #              "request_time": "0.000"}
+    body_dict = {"time_local": "[31/Oct/2016:15:11:59 +0800]", "unix_time": "1477897919",
+                 "remote_addr": "183.240.128.149", "clientip": "-", "host": "183.232.234.8",
+                 "request_url": "GET /xsjrw/xsjrw-stream-1477897111-73315890-110-3000.ts HTTP/1.1", "http_stat": 200,
+                 "request_length": 480, "body_bytes_sent": 78584, "http_referer": "http://www.51888zb.com/m/",
+                 "http_user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_2 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Mobile/13F69 QQ/6.5.8.437 V1_IPH_SQ_6.5.8_1_APP_A Pixel/1080 Core/UIWebView NetType/WIFI Mem/141",
+                 "server_addr": "183.232.234.8", "upstream_addr": "-", "upstream_response_time": "-",
+                 "request_time": "0.000"}
 
-    body_dict ={"user":"0","time_local":"[31/Oct/2016:15:11:48 +0800]", "unix_time":"1477897908", "remote_addr":"139.201.125.76", "svr_type":1, "host":"0.mlsscdnsource.aodianyun.com", "request_url":"GET /gmb/streamhxb__redirect__1102.m3u8 HTTP/1.1", "http_stat":200, "request_length":91, "body_bytes_sent":250, "http_referer":"-", "http_user_agent":"-", "server_addr":"120.76.29.115", "upstream_addr":"127.0.0.1:8080", "upstream_response_time":"0.002", "request_time":"0.002" }
+    # body_dict ={"user":"0","time_local":"[31/Oct/2016:15:11:48 +0800]", "unix_time":"1477897908", "remote_addr":"139.201.125.76", "svr_type":1, "host":"0.mlsscdnsource.aodianyun.com", "request_url":"GET /gmb/streamhxb__redirect__1102.m3u8 HTTP/1.1", "http_stat":200, "request_length":91, "body_bytes_sent":250, "http_referer":"-", "http_user_agent":"-", "server_addr":"120.76.29.115", "upstream_addr":"127.0.0.1:8080", "upstream_response_time":"0.002", "request_time":"0.002" }
 
     print(hlsParser(body_dict))
 

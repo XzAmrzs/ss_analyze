@@ -103,34 +103,34 @@ db.rtmp_forward_app.ensureIndex({app:1,timestamp: -1},{background:true,unique:tr
 db.rtmp_forward_server.ensureIndex({svr_ip:1,timestamp: -1},{background:true,unique:true,dropDups:true})
 
 
-db.hls_up.remove({'timestamp':20161113})
-db.hls_down.remove({'timestamp':20161113})
-db.hls_up_s.remove({'timestamp':20161113})
-db.hls_down_s.remove({'timestamp':20161113})
-db.hls_up_a.remove({'timestamp':20161113})
-db.hls_down_a.remove({'timestamp':20161113})
-db.hls_down_user.remove({'timestamp':20161113})
-db.hls_down_user_hour.remove({'timestamp':{"$gte":2016111300,"$lte":2016111324}})
-db.hls_down_app_stream.remove({'timestamp':20161113})
-db.hls_down_app_stream_hour.remove({'timestamp':{"$gte":2016111300,"$lte":2016111324}})
-db.hls_down_httpCode.remove({'timestamp':20161113})
-db.HlsDayData.remove({'updateTime':20161113})
-db.HlsUserData.remove({'updateTime':20161113})
-db.HlsStreamData.remove({'updateTime':20161113})
+db.hls_up.remove({'timestamp':20161121})
+db.hls_down.remove({'timestamp':20161121})
+db.hls_up_s.remove({'timestamp':20161121})
+db.hls_down_s.remove({'timestamp':20161121})
+db.hls_up_a.remove({'timestamp':20161121})
+db.hls_down_a.remove({'timestamp':20161121})
+db.hls_down_user.remove({'timestamp':20161121})
+db.hls_down_user_hour.remove({'timestamp':{"$gte":2016112100,"$lte":2016112124}})
+db.hls_down_app_stream.remove({'timestamp':20161121})
+db.hls_down_app_stream_hour.remove({'timestamp':{"$gte":2016112100,"$lte":2016112124}})
+db.hls_down_httpCode.remove({'timestamp':20161121})
+db.HlsDayData.remove({'updateTime':20161121})
+db.HlsUserData.remove({'updateTime':20161121})
+db.HlsStreamData.remove({'updateTime':20161121})
 
-db.rtmp_up.drop()
-db.rtmp_up_app.drop()
-db.rtmp_up_server.drop()
-db.rtmp_down.drop()
-db.rtmp_down_app.drop()
-db.rtmp_down_server.drop()
-db.rtmp_down_user.drop()
-db.rtmp_down_app_stream.drop()
-db.rtmp_down_user_hour.drop()
-db.rtmp_down_app_stream_hour.drop()
-db.rtmp_forward.drop()
-db.rtmp_forward_app.drop()
-db.rtmp_forward_server.drop()
+db.rtmp_up.remove({'timestamp':20161121})
+db.rtmp_up_app.remove({'timestamp':20161121})
+db.rtmp_up_server.remove({'timestamp':20161121})
+db.rtmp_down.remove({'timestamp':20161121})
+db.rtmp_down_app.remove({'timestamp':20161121})
+db.rtmp_down_server.remove({'timestamp':20161121})
+db.rtmp_down_user.remove({'timestamp':20161121})
+db.rtmp_down_app_stream.remove({'timestamp':20161121})
+db.rtmp_down_user_hour.remove({'timestamp':{"$gte":2016112100,"$lte":2016112124}})
+db.rtmp_down_app_stream_hour.remove({'timestamp':{"$gte":2016112100,"$lte":2016112124}})
+db.rtmp_forward.remove({'timestamp':20161121})
+db.rtmp_forward_app.remove({'timestamp':20161121})
+db.rtmp_forward_server.remove({'timestamp':20161121})
 ```
 
 ## 启动与重启服务:
@@ -168,7 +168,7 @@ jps|grep -i QuorumPeerMain|grep -v grep |awk '{print "kill -9",$1}' |sh
 ```
 
 ## 更新程序:
-1. 暂停MQ进程(在所有机器上执行,)
+1. 暂停MQ进程(在所有机器上执行)
 ```
 ps -ef|grep -i nodeHls|grep -v grep |awk '{print "kill -2",$2}' |sh
 ps -ef|grep -i rtmp|grep -v grep |awk '{print "kill -2",$2}' |sh
